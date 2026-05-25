@@ -137,21 +137,6 @@ public class StudentHolidayMode : BaseEntity
     };
 }
 
-public class Attendance : BaseEntity
-{
-    public string StudentId { get; set; } = "";
-    public User? Student { get; set; }
-    public DateTime Date { get; set; }
-    public string MealType { get; set; } = "";
-    public bool Present { get; set; }
-    public bool Approved { get; set; }
-    public string? ApprovedById { get; set; }
-    public DateTime? ApprovedAt { get; set; }
-    public string MarkedById { get; set; } = "";
-    public User? MarkedBy { get; set; }
-    public object Dto() => new { _id = Id, id = Id, student = Student?.Mini() ?? StudentId, date = Date, mealType = MealType, present = Present, approved = Approved, approvedBy = ApprovedById, approvedAt = ApprovedAt, markedBy = MarkedBy?.Mini() ?? MarkedById, createdAt = CreatedAt, updatedAt = UpdatedAt };
-}
-
 public class Complaint : BaseEntity
 {
     public string StudentId { get; set; } = "";

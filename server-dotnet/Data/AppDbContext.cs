@@ -8,7 +8,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<MealSelection> MealSelections => Set<MealSelection>();
     public DbSet<WeeklyMealSchedule> WeeklyMealSchedules => Set<WeeklyMealSchedule>();
     public DbSet<StudentHolidayMode> StudentHolidayModes => Set<StudentHolidayMode>();
-    public DbSet<Attendance> Attendance => Set<Attendance>();
     public DbSet<Complaint> Complaints => Set<Complaint>();
     public DbSet<Notice> Notices => Set<Notice>();
     public DbSet<Feedback> Feedback => Set<Feedback>();
@@ -31,7 +30,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<MealSelection>().HasIndex(m => new { m.StudentId, m.Date }).IsUnique();
         modelBuilder.Entity<WeeklyMealSchedule>().HasIndex(m => new { m.DayOfWeek, m.MealType }).IsUnique();
         modelBuilder.Entity<StudentHolidayMode>().HasIndex(h => h.StudentId);
-        modelBuilder.Entity<Attendance>().HasIndex(a => new { a.StudentId, a.Date, a.MealType }).IsUnique();
         modelBuilder.Entity<Feedback>().HasIndex(f => new { f.StudentId, f.Date, f.MealType }).IsUnique();
         modelBuilder.Entity<Bill>().HasIndex(b => new { b.StudentId, b.Month, b.Year }).IsUnique();
         modelBuilder.Entity<UtilityExpense>().HasIndex(e => new { e.Year, e.Month, e.Type });

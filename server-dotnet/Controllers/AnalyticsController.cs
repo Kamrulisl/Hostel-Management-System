@@ -17,9 +17,6 @@ public class AnalyticsController(AppDbContext db) : ApiControllerBase
         pendingComplaints = await db.Complaints.CountAsync(c => c.Status != "resolved")
     }, "Overview analytics retrieved successfully");
 
-    [HttpGet("attendance-trends")]
-    public async Task<IActionResult> AttendanceTrends() => await MealTrends(7);
-
     [HttpGet("meal-trends")]
     public async Task<IActionResult> MealTrends(int days = 7)
     {

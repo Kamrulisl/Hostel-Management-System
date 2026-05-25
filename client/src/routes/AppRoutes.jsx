@@ -112,14 +112,6 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/student/attendance"
-        element={<Navigate to="/student/meal-selection" replace />}
-      />
-      <Route
-        path="/student/attendance-history"
-        element={<Navigate to="/student/meal-selection" replace />}
-      />
-      <Route
         path="/student/bill"
         element={
           <ProtectedRoute>
@@ -200,18 +192,6 @@ const AppRoutes = () => {
             </RoleRoute>
           </ProtectedRoute>
         }
-      />
-      <Route
-        path="/manager/attendance"
-        element={<Navigate to="/manager/menu" replace />}
-      />
-      <Route
-        path="/manager/attendance-mark"
-        element={<Navigate to="/manager/menu" replace />}
-      />
-      <Route
-        path="/manager/attendance-report"
-        element={<Navigate to="/manager/menu" replace />}
       />
       <Route
         path="/manager/inventory"

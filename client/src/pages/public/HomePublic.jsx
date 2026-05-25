@@ -43,9 +43,9 @@ const HomePublic = () => {
     },
     {
       icon: <CheckCircle />,
-      title: "Attendance Tracking",
+      title: "Meal Selection",
       description:
-        "Automated attendance system for accurate billing and analytics",
+        "Daily meal choices with automatic monthly billing calculations",
       color: "#10b981",
     },
     {

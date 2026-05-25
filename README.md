@@ -14,7 +14,7 @@ React frontend with an ASP.NET Core MVC Web API backend on .NET 8, Entity Framew
 ## Main Features
 
 - Student, manager, and admin authentication
-- User, menu, meal, attendance, billing, complaint, notice, feedback, inventory, audit, and message APIs
+- User, menu, meal selection, billing, complaint, notice, feedback, daily bazar, audit, and message APIs
 - Weekly repeating meal schedule
 - Default meal auto approval
 - Student alternative meal and meal cancel requests
