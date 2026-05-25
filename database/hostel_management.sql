@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict DCkzJoHvBflyZUrKhj3H5kYuB2ndZGQqTZsR0f3ZC4gW9enE3aYWnBwvRuJW7iP
+\restrict wev9eRlM9bC01OJnCqCAxZc5PKdsL3WfnSA92VEh2qd9bTSa1h3vZ3rF4XsavfO
 
 -- Dumped from database version 18.4 (Ubuntu 18.4-1.pgdg24.04+1)
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-1.pgdg24.04+1)
@@ -28,12 +28,15 @@ ALTER TABLE IF EXISTS ONLY public."MealSelections" DROP CONSTRAINT IF EXISTS "FK
 ALTER TABLE IF EXISTS ONLY public."MealPlans" DROP CONSTRAINT IF EXISTS "FK_MealPlans_Users_StudentId";
 ALTER TABLE IF EXISTS ONLY public."Holidays" DROP CONSTRAINT IF EXISTS "FK_Holidays_Settings_SettingsId";
 ALTER TABLE IF EXISTS ONLY public."Feedback" DROP CONSTRAINT IF EXISTS "FK_Feedback_Users_StudentId";
+ALTER TABLE IF EXISTS ONLY public."DailyBazars" DROP CONSTRAINT IF EXISTS "FK_DailyBazars_Users_CreatedById";
 ALTER TABLE IF EXISTS ONLY public."Complaints" DROP CONSTRAINT IF EXISTS "FK_Complaints_Users_StudentId";
 ALTER TABLE IF EXISTS ONLY public."Complaints" DROP CONSTRAINT IF EXISTS "FK_Complaints_Users_ResolvedById";
 ALTER TABLE IF EXISTS ONLY public."Bills" DROP CONSTRAINT IF EXISTS "FK_Bills_Users_StudentId";
 ALTER TABLE IF EXISTS ONLY public."Attendance" DROP CONSTRAINT IF EXISTS "FK_Attendance_Users_StudentId";
 ALTER TABLE IF EXISTS ONLY public."Attendance" DROP CONSTRAINT IF EXISTS "FK_Attendance_Users_MarkedById";
+ALTER TABLE IF EXISTS ONLY public."AdvancePayments" DROP CONSTRAINT IF EXISTS "FK_AdvancePayments_Users_StudentId";
 DROP INDEX IF EXISTS public."IX_WeeklyMealSchedules_DayOfWeek_MealType";
+DROP INDEX IF EXISTS public."IX_UtilityExpenses_Year_Month_Type";
 DROP INDEX IF EXISTS public."IX_Users_RollNumber";
 DROP INDEX IF EXISTS public."IX_Users_Email";
 DROP INDEX IF EXISTS public."IX_StudentHolidayModes_StudentId";
@@ -46,13 +49,16 @@ DROP INDEX IF EXISTS public."IX_MealSelections_StudentId_Date";
 DROP INDEX IF EXISTS public."IX_MealPlans_StudentId_Date";
 DROP INDEX IF EXISTS public."IX_Holidays_SettingsId";
 DROP INDEX IF EXISTS public."IX_Feedback_StudentId_Date_MealType";
+DROP INDEX IF EXISTS public."IX_DailyBazars_CreatedById";
 DROP INDEX IF EXISTS public."IX_Complaints_StudentId";
 DROP INDEX IF EXISTS public."IX_Complaints_ResolvedById";
 DROP INDEX IF EXISTS public."IX_Bills_StudentId_Month_Year";
 DROP INDEX IF EXISTS public."IX_Attendance_StudentId_Date_MealType";
 DROP INDEX IF EXISTS public."IX_Attendance_MarkedById";
+DROP INDEX IF EXISTS public."IX_AdvancePayments_StudentId_Date";
 ALTER TABLE IF EXISTS ONLY public."__EFMigrationsHistory" DROP CONSTRAINT IF EXISTS "PK___EFMigrationsHistory";
 ALTER TABLE IF EXISTS ONLY public."WeeklyMealSchedules" DROP CONSTRAINT IF EXISTS "PK_WeeklyMealSchedules";
+ALTER TABLE IF EXISTS ONLY public."UtilityExpenses" DROP CONSTRAINT IF EXISTS "PK_UtilityExpenses";
 ALTER TABLE IF EXISTS ONLY public."Users" DROP CONSTRAINT IF EXISTS "PK_Users";
 ALTER TABLE IF EXISTS ONLY public."StudentHolidayModes" DROP CONSTRAINT IF EXISTS "PK_StudentHolidayModes";
 ALTER TABLE IF EXISTS ONLY public."Settings" DROP CONSTRAINT IF EXISTS "PK_Settings";
@@ -64,12 +70,15 @@ ALTER TABLE IF EXISTS ONLY public."MealPlans" DROP CONSTRAINT IF EXISTS "PK_Meal
 ALTER TABLE IF EXISTS ONLY public."Inventory" DROP CONSTRAINT IF EXISTS "PK_Inventory";
 ALTER TABLE IF EXISTS ONLY public."Holidays" DROP CONSTRAINT IF EXISTS "PK_Holidays";
 ALTER TABLE IF EXISTS ONLY public."Feedback" DROP CONSTRAINT IF EXISTS "PK_Feedback";
+ALTER TABLE IF EXISTS ONLY public."DailyBazars" DROP CONSTRAINT IF EXISTS "PK_DailyBazars";
 ALTER TABLE IF EXISTS ONLY public."Complaints" DROP CONSTRAINT IF EXISTS "PK_Complaints";
 ALTER TABLE IF EXISTS ONLY public."Bills" DROP CONSTRAINT IF EXISTS "PK_Bills";
 ALTER TABLE IF EXISTS ONLY public."AuditLogs" DROP CONSTRAINT IF EXISTS "PK_AuditLogs";
 ALTER TABLE IF EXISTS ONLY public."Attendance" DROP CONSTRAINT IF EXISTS "PK_Attendance";
+ALTER TABLE IF EXISTS ONLY public."AdvancePayments" DROP CONSTRAINT IF EXISTS "PK_AdvancePayments";
 DROP TABLE IF EXISTS public."__EFMigrationsHistory";
 DROP TABLE IF EXISTS public."WeeklyMealSchedules";
+DROP TABLE IF EXISTS public."UtilityExpenses";
 DROP TABLE IF EXISTS public."Users";
 DROP TABLE IF EXISTS public."StudentHolidayModes";
 DROP TABLE IF EXISTS public."Settings";
@@ -81,13 +90,31 @@ DROP TABLE IF EXISTS public."MealPlans";
 DROP TABLE IF EXISTS public."Inventory";
 DROP TABLE IF EXISTS public."Holidays";
 DROP TABLE IF EXISTS public."Feedback";
+DROP TABLE IF EXISTS public."DailyBazars";
 DROP TABLE IF EXISTS public."Complaints";
 DROP TABLE IF EXISTS public."Bills";
 DROP TABLE IF EXISTS public."AuditLogs";
 DROP TABLE IF EXISTS public."Attendance";
+DROP TABLE IF EXISTS public."AdvancePayments";
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: AdvancePayments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."AdvancePayments" (
+    "Id" text NOT NULL,
+    "StudentId" text NOT NULL,
+    "Date" timestamp without time zone NOT NULL,
+    "Amount" numeric NOT NULL,
+    "ReceivedById" text NOT NULL,
+    "Notes" text,
+    "CreatedAt" timestamp without time zone NOT NULL,
+    "UpdatedAt" timestamp without time zone NOT NULL
+);
+
 
 --
 -- Name: Attendance; Type: TABLE; Schema: public; Owner: -
@@ -151,7 +178,11 @@ CREATE TABLE public."Bills" (
     "DinnerRate" numeric NOT NULL,
     "GeneratedById" text,
     "CreatedAt" timestamp without time zone NOT NULL,
-    "UpdatedAt" timestamp without time zone NOT NULL
+    "UpdatedAt" timestamp without time zone NOT NULL,
+    "AdvancePaid" numeric DEFAULT 0.0 NOT NULL,
+    "MealRate" numeric DEFAULT 0.0 NOT NULL,
+    "PreviousDue" numeric DEFAULT 0.0 NOT NULL,
+    "UtilityCost" numeric DEFAULT 0.0 NOT NULL
 );
 
 
@@ -170,6 +201,22 @@ CREATE TABLE public."Complaints" (
     "ResolvedById" text,
     "ResolvedAt" timestamp without time zone,
     "AdminNotes" text,
+    "CreatedAt" timestamp without time zone NOT NULL,
+    "UpdatedAt" timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: DailyBazars; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."DailyBazars" (
+    "Id" text NOT NULL,
+    "Date" timestamp without time zone NOT NULL,
+    "ItemsJson" text NOT NULL,
+    "TotalAmount" numeric NOT NULL,
+    "CreatedById" text NOT NULL,
+    "Notes" text,
     "CreatedAt" timestamp without time zone NOT NULL,
     "UpdatedAt" timestamp without time zone NOT NULL
 );
@@ -381,6 +428,22 @@ CREATE TABLE public."Users" (
 
 
 --
+-- Name: UtilityExpenses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public."UtilityExpenses" (
+    "Id" text NOT NULL,
+    "Month" integer NOT NULL,
+    "Year" integer NOT NULL,
+    "Type" text NOT NULL,
+    "Amount" numeric NOT NULL,
+    "Notes" text,
+    "CreatedAt" timestamp without time zone NOT NULL,
+    "UpdatedAt" timestamp without time zone NOT NULL
+);
+
+
+--
 -- Name: WeeklyMealSchedules; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -405,6 +468,14 @@ CREATE TABLE public."__EFMigrationsHistory" (
     "MigrationId" character varying(150) NOT NULL,
     "ProductVersion" character varying(32) NOT NULL
 );
+
+
+--
+-- Data for Name: AdvancePayments; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."AdvancePayments" ("Id", "StudentId", "Date", "Amount", "ReceivedById", "Notes", "CreatedAt", "UpdatedAt") FROM stdin;
+\.
 
 
 --
@@ -443,6 +514,8 @@ b1cdb8b657073af41ef73010	3acdfa641bdfe968502b3d15	student	LOGIN	User	3acdfa641bd
 2f692de6057abbedeaf07037	2a8fbe44e221552bf3ea6454	manager	LOGIN	User	2a8fbe44e221552bf3ea6454	User logged in	{}	2026-05-25 11:22:15.714239	2026-05-25 11:22:15.714239
 7852e282e6aaaa19b6b29677	3acdfa641bdfe968502b3d15	student	LOGIN	User	3acdfa641bdfe968502b3d15	User logged in	{}	2026-05-25 11:24:15.251053	2026-05-25 11:24:15.251132
 e0c70dc8920255e73189e1f5	2a8fbe44e221552bf3ea6454	manager	LOGIN	User	2a8fbe44e221552bf3ea6454	User logged in	{}	2026-05-25 11:24:16.479718	2026-05-25 11:24:16.479718
+1190bd2cfdc49ed4a4d6197f	474a93b899cc03d94a78543f	admin	LOGIN	User	474a93b899cc03d94a78543f	User logged in	{}	2026-05-25 12:49:41.203202	2026-05-25 12:49:41.203241
+3a0bd067ff269cce34c65cc5	2a8fbe44e221552bf3ea6454	manager	LOGIN	User	2a8fbe44e221552bf3ea6454	User logged in	{}	2026-05-25 12:50:11.277042	2026-05-25 12:50:11.277042
 \.
 
 
@@ -450,9 +523,9 @@ e0c70dc8920255e73189e1f5	2a8fbe44e221552bf3ea6454	manager	LOGIN	User	2a8fbe44e22
 -- Data for Name: Bills; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public."Bills" ("Id", "StudentId", "Month", "Year", "TotalMeals", "MealCost", "FixedCost", "TotalAmount", "Status", "PaidAt", "PaymentMethod", "TransactionId", "BreakfastCount", "BreakfastRate", "LunchCount", "LunchRate", "DinnerCount", "DinnerRate", "GeneratedById", "CreatedAt", "UpdatedAt") FROM stdin;
-bill0000000000000000001	3acdfa641bdfe968502b3d15	5	2026	3	150	2000	2150	DUE	\N	\N	\N	1	35	1	60	1	55	474a93b899cc03d94a78543f	2026-05-25 15:28:18.757808	2026-05-25 15:28:18.757808
-bill0000000000000000002	be0ba0ba02ad271dbb3c612b	5	2026	2	115	2000	2115	PAID	2026-05-25 15:28:18.757808	cash	CASH-001	0	35	1	60	1	55	474a93b899cc03d94a78543f	2026-05-25 15:28:18.757808	2026-05-25 15:28:18.757808
+COPY public."Bills" ("Id", "StudentId", "Month", "Year", "TotalMeals", "MealCost", "FixedCost", "TotalAmount", "Status", "PaidAt", "PaymentMethod", "TransactionId", "BreakfastCount", "BreakfastRate", "LunchCount", "LunchRate", "DinnerCount", "DinnerRate", "GeneratedById", "CreatedAt", "UpdatedAt", "AdvancePaid", "MealRate", "PreviousDue", "UtilityCost") FROM stdin;
+bill0000000000000000001	3acdfa641bdfe968502b3d15	5	2026	3	150	2000	2150	DUE	\N	\N	\N	1	35	1	60	1	55	474a93b899cc03d94a78543f	2026-05-25 15:28:18.757808	2026-05-25 15:28:18.757808	0.0	0.0	0.0	0.0
+bill0000000000000000002	be0ba0ba02ad271dbb3c612b	5	2026	2	115	2000	2115	PAID	2026-05-25 15:28:18.757808	cash	CASH-001	0	35	1	60	1	55	474a93b899cc03d94a78543f	2026-05-25 15:28:18.757808	2026-05-25 15:28:18.757808	0.0	0.0	0.0	0.0
 \.
 
 
@@ -463,6 +536,14 @@ bill0000000000000000002	be0ba0ba02ad271dbb3c612b	5	2026	2	115	2000	2115	PAID	202
 COPY public."Complaints" ("Id", "StudentId", "Category", "Title", "Description", "Status", "Priority", "ResolvedById", "ResolvedAt", "AdminNotes", "CreatedAt", "UpdatedAt") FROM stdin;
 comp00000000000000000001	3acdfa641bdfe968502b3d15	food	Lunch was too spicy	Please reduce chili in chicken curry.	pending	medium	\N	\N	\N	2026-05-25 15:28:18.757808	2026-05-25 15:28:18.757808
 comp00000000000000000002	be0ba0ba02ad271dbb3c612b	maintenance	Water filter issue	Dining water filter needs cleaning.	in-progress	high	474a93b899cc03d94a78543f	\N	Assigned to maintenance team	2026-05-25 15:28:18.757808	2026-05-25 15:28:18.757808
+\.
+
+
+--
+-- Data for Name: DailyBazars; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."DailyBazars" ("Id", "Date", "ItemsJson", "TotalAmount", "CreatedById", "Notes", "CreatedAt", "UpdatedAt") FROM stdin;
 \.
 
 
@@ -559,7 +640,7 @@ settings0000000000000001	35	60	55	20:00	1	100	0	0	Smart Hostel Mess	Dhaka Hostel
 --
 
 COPY public."StudentHolidayModes" ("Id", "StudentId", "IsEnabled", "StartDate", "EndDate", "Reason", "CreatedAt", "UpdatedAt") FROM stdin;
-24260bc52bdebbfce5610858	bc413512843c5139b681c31f	f	\N	\N	\N	2026-05-25 11:06:55.823014	2026-05-25 11:07:28.431846
+24260bc52bdebbfce5610858	bc413512843c5139b681c31f	f	2026-05-23 00:00:00	2026-06-25 00:00:00	Home	2026-05-25 11:06:55.823014	2026-05-25 11:48:24.829561
 \.
 
 
@@ -577,6 +658,14 @@ bc413512843c5139b681c31f	Nusrat Jahan	nusrat@student.com	$2a$12$41ly6yr2hhgJAzVH
 2d738cbbc34c343517d78f91	Sabbir Hossain	sabbir@student.com	$2a$12$LBRlAH06VhNoCykA7fSpyeFi/Rz3ViAVwcLeO5D626gV2nAmc9q.2	student	CSE-004	B-201	01800000004	t	2026-05-25 09:29:41.536485	2026-05-25 09:29:41.536485
 7161b632029b8295fcd67d08	Super Admin	superadmin@hostel.com	$2a$12$2dosTU8SGsBHZeSOK3JYwu2GvIRwft70yCvhL1.KB7kIH5MJm6hg.	admin	\N	\N	01700000003	t	2026-05-25 09:29:50.421105	2026-05-25 09:29:50.421105
 8b68ca29b7aecbf52f2ef6f6	Assistant Manager	assistant.manager@hostel.com	$2a$12$Qrl9.3W8E6nelfna4YdEau5Sw9HgO8eRs6AmdQCzKiQ6FMZ6D7J3e	manager	\N	\N	01700000002	t	2026-05-25 09:29:50.429339	2026-05-25 09:29:50.429339
+\.
+
+
+--
+-- Data for Name: UtilityExpenses; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public."UtilityExpenses" ("Id", "Month", "Year", "Type", "Amount", "Notes", "CreatedAt", "UpdatedAt") FROM stdin;
 \.
 
 
@@ -617,7 +706,16 @@ COPY public."__EFMigrationsHistory" ("MigrationId", "ProductVersion") FROM stdin
 20260525084458_InitialCreate	8.0.18
 20260525094845_SplitMealSelections	8.0.18
 20260525103146_WeeklyMealWorkflow	8.0.18
+20260525130402_BazarUtilityAdvanceBilling	8.0.18
 \.
+
+
+--
+-- Name: AdvancePayments PK_AdvancePayments; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AdvancePayments"
+    ADD CONSTRAINT "PK_AdvancePayments" PRIMARY KEY ("Id");
 
 
 --
@@ -650,6 +748,14 @@ ALTER TABLE ONLY public."Bills"
 
 ALTER TABLE ONLY public."Complaints"
     ADD CONSTRAINT "PK_Complaints" PRIMARY KEY ("Id");
+
+
+--
+-- Name: DailyBazars PK_DailyBazars; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."DailyBazars"
+    ADD CONSTRAINT "PK_DailyBazars" PRIMARY KEY ("Id");
 
 
 --
@@ -741,6 +847,14 @@ ALTER TABLE ONLY public."Users"
 
 
 --
+-- Name: UtilityExpenses PK_UtilityExpenses; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."UtilityExpenses"
+    ADD CONSTRAINT "PK_UtilityExpenses" PRIMARY KEY ("Id");
+
+
+--
 -- Name: WeeklyMealSchedules PK_WeeklyMealSchedules; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -754,6 +868,13 @@ ALTER TABLE ONLY public."WeeklyMealSchedules"
 
 ALTER TABLE ONLY public."__EFMigrationsHistory"
     ADD CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId");
+
+
+--
+-- Name: IX_AdvancePayments_StudentId_Date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "IX_AdvancePayments_StudentId_Date" ON public."AdvancePayments" USING btree ("StudentId", "Date");
 
 
 --
@@ -789,6 +910,13 @@ CREATE INDEX "IX_Complaints_ResolvedById" ON public."Complaints" USING btree ("R
 --
 
 CREATE INDEX "IX_Complaints_StudentId" ON public."Complaints" USING btree ("StudentId");
+
+
+--
+-- Name: IX_DailyBazars_CreatedById; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "IX_DailyBazars_CreatedById" ON public."DailyBazars" USING btree ("CreatedById");
 
 
 --
@@ -876,10 +1004,25 @@ CREATE UNIQUE INDEX "IX_Users_RollNumber" ON public."Users" USING btree ("RollNu
 
 
 --
+-- Name: IX_UtilityExpenses_Year_Month_Type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "IX_UtilityExpenses_Year_Month_Type" ON public."UtilityExpenses" USING btree ("Year", "Month", "Type");
+
+
+--
 -- Name: IX_WeeklyMealSchedules_DayOfWeek_MealType; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX "IX_WeeklyMealSchedules_DayOfWeek_MealType" ON public."WeeklyMealSchedules" USING btree ("DayOfWeek", "MealType");
+
+
+--
+-- Name: AdvancePayments FK_AdvancePayments_Users_StudentId; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."AdvancePayments"
+    ADD CONSTRAINT "FK_AdvancePayments_Users_StudentId" FOREIGN KEY ("StudentId") REFERENCES public."Users"("Id") ON DELETE CASCADE;
 
 
 --
@@ -920,6 +1063,14 @@ ALTER TABLE ONLY public."Complaints"
 
 ALTER TABLE ONLY public."Complaints"
     ADD CONSTRAINT "FK_Complaints_Users_StudentId" FOREIGN KEY ("StudentId") REFERENCES public."Users"("Id") ON DELETE CASCADE;
+
+
+--
+-- Name: DailyBazars FK_DailyBazars_Users_CreatedById; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public."DailyBazars"
+    ADD CONSTRAINT "FK_DailyBazars_Users_CreatedById" FOREIGN KEY ("CreatedById") REFERENCES public."Users"("Id") ON DELETE CASCADE;
 
 
 --
@@ -998,5 +1149,5 @@ ALTER TABLE ONLY public."StudentHolidayModes"
 -- PostgreSQL database dump complete
 --
 
-\unrestrict DCkzJoHvBflyZUrKhj3H5kYuB2ndZGQqTZsR0f3ZC4gW9enE3aYWnBwvRuJW7iP
+\unrestrict wev9eRlM9bC01OJnCqCAxZc5PKdsL3WfnSA92VEh2qd9bTSa1h3vZ3rF4XsavfO
 

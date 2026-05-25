@@ -12,13 +12,13 @@ import {
 } from '@heroicons/react/24/outline';
 import { menuService } from '../../services/menu.service';
 import { billingService } from '../../services/billing.service';
-import { attendanceService } from '../../services/attendance.service';
+import { mealSelectionService } from '../../services/mealSelection.service';
 
 const ModernStudentDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
-    attendanceCount: 0,
+    selectedMeals: 0,
     currentBill: 0,
     pendingBills: 0,
     mealsThisMonth: 0,
@@ -35,10 +35,10 @@ const ModernStudentDashboard = () => {
       const currentMonth = new Date().getMonth();
       const currentYear = new Date().getFullYear();
 
-      const [menuRes, billsRes, attendanceRes] = await Promise.all([
+      const [menuRes, billsRes, mealRes] = await Promise.all([
         menuService.getTodayMenu(),
         billingService.getMyBills(),
-        attendanceService.getMyAttendance(),
+        mealSelectionService.getMealSummary(currentYear, currentMonth + 1),
       ]);
 
       setTodayMenu(menuRes.data.menu ? Object.values(menuRes.data.menu).filter(m => m && m._id) : []);
@@ -49,19 +49,13 @@ const ModernStudentDashboard = () => {
         (b) => b.month === currentMonth + 1 && b.year === currentYear
       );
       
-      const attendance = attendanceRes.data.attendance || [];
-      const thisMonth = attendance.filter((a) => {
-        const date = new Date(a.date);
-        return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-      });
-
-      const approvedAttendance = thisMonth.filter((a) => a.approved);
+      const mealSummary = mealRes.data.summary || {};
 
       setStats({
-        attendanceCount: approvedAttendance.length,
+        selectedMeals: mealSummary.totalMeals || 0,
         currentBill: currentMonthBill?.totalAmount || 0,
         pendingBills: pendingBills.length,
-        mealsThisMonth: approvedAttendance.length,
+        mealsThisMonth: mealSummary.totalMeals || 0,
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -72,8 +66,8 @@ const ModernStudentDashboard = () => {
 
   const statsCards = [
     {
-      name: 'Attendance',
-      value: stats.attendanceCount,
+      name: 'Selected Meals',
+      value: stats.selectedMeals,
       change: `${stats.mealsThisMonth} meals`,
       changeType: 'positive',
       icon: CheckCircleIcon,
@@ -285,11 +279,11 @@ const ModernStudentDashboard = () => {
             </h3>
             <div className="space-y-2">
               <button
-                onClick={() => navigate('/student/attendance')}
+                onClick={() => navigate('/student/meal-selection')}
                 className="w-full btn-secondary justify-start"
               >
                 <CheckCircleIcon className="w-5 h-5" />
-                Mark Attendance
+                Meal Selection
               </button>
               <button
                 onClick={() => navigate('/student/menu')}

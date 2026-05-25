@@ -9,4 +9,10 @@ export const inventoryService = {
   restockItem: (id, quantity) => api.patch(`/inventory/${id}/restock`, { quantity }),
   getLowStockItems: () => api.get("/inventory/low-stock"),
   getInventoryStats: () => api.get("/inventory/stats"),
+  getBazar: (params) => api.get("/inventory/bazar", { params }),
+  getBazarDefaults: (date) => api.get(`/inventory/bazar/defaults?date=${date}`),
+  createBazar: (data) => api.post("/inventory/bazar", data),
+  getUtilities: (month, year) => api.get(`/inventory/utilities?month=${month}&year=${year}`),
+  createUtility: (data) => api.post("/inventory/utilities", data),
+  createAdvance: (data) => api.post("/inventory/advances", data),
 };

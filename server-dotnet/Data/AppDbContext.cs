@@ -15,6 +15,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Settings> Settings => Set<Settings>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<InventoryItem> Inventory => Set<InventoryItem>();
+    public DbSet<DailyBazar> DailyBazars => Set<DailyBazar>();
+    public DbSet<UtilityExpense> UtilityExpenses => Set<UtilityExpense>();
+    public DbSet<AdvancePayment> AdvancePayments => Set<AdvancePayment>();
     public DbSet<Bill> Bills => Set<Bill>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -31,6 +34,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<Attendance>().HasIndex(a => new { a.StudentId, a.Date, a.MealType }).IsUnique();
         modelBuilder.Entity<Feedback>().HasIndex(f => new { f.StudentId, f.Date, f.MealType }).IsUnique();
         modelBuilder.Entity<Bill>().HasIndex(b => new { b.StudentId, b.Month, b.Year }).IsUnique();
+        modelBuilder.Entity<UtilityExpense>().HasIndex(e => new { e.Year, e.Month, e.Type });
+        modelBuilder.Entity<AdvancePayment>().HasIndex(p => new { p.StudentId, p.Date });
 
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
         {

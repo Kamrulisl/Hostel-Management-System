@@ -7,6 +7,90 @@ using Microsoft.EntityFrameworkCore;
 [Route("api/v1/inventory")]
 public class InventoryController(AppDbContext db) : ApiControllerBase
 {
+    [HttpGet("bazar")]
+    public async Task<IActionResult> Bazar(DateTime? date, int? month, int? year)
+    {
+        var query = db.DailyBazars.Include(b => b.CreatedBy).AsQueryable();
+        if (date is not null) query = query.Where(b => b.Date == date.Value.Date);
+        if (month is not null && year is not null) query = query.Where(b => b.Date.Month == month && b.Date.Year == year);
+        var rows = await query.OrderByDescending(b => b.Date).ThenByDescending(b => b.CreatedAt).ToListAsync();
+        return OkResponse(new { bazars = rows.Select(b => b.Dto()), total = rows.Sum(b => b.TotalAmount) }, "Bazar list retrieved successfully");
+    }
+
+    [HttpGet("bazar/defaults")]
+    public async Task<IActionResult> BazarDefaults(DateTime date)
+    {
+        var schedules = await db.WeeklyMealSchedules.Where(s => s.DayOfWeek == (int)date.Date.DayOfWeek).ToListAsync();
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var schedule in schedules)
+        {
+            AddItemHints(names, schedule.DefaultItemsJson);
+            AddItemHints(names, schedule.AlternativeItemsJson);
+        }
+        var defaults = names.Select(name => new { itemName = name, quantity = "", unit = "kg", price = 0, total = 0 });
+        return OkResponse(new { defaults }, "Default bazar items retrieved successfully");
+    }
+
+    [HttpPost("bazar")]
+    public async Task<IActionResult> CreateBazar(JsonElement body)
+    {
+        var itemsJson = body.Raw("items") ?? "[]";
+        var bazar = new DailyBazar
+        {
+            Id = Ids.New(),
+            Date = body.Date("date")?.Date ?? DateTime.UtcNow.Date,
+            ItemsJson = itemsJson,
+            TotalAmount = body.Decimal("totalAmount") ?? SumBazarItems(itemsJson),
+            Notes = body.String("notes"),
+            CreatedById = User.Id()!
+        };
+        db.DailyBazars.Add(bazar);
+        await db.SaveChangesAsync();
+        return CreatedResponse(new { bazar = bazar.Dto() }, "Daily bazar added successfully");
+    }
+
+    [HttpGet("utilities")]
+    public async Task<IActionResult> Utilities(int month, int year)
+    {
+        var rows = await db.UtilityExpenses.Where(e => e.Month == month && e.Year == year).OrderByDescending(e => e.CreatedAt).ToListAsync();
+        return OkResponse(new { utilities = rows.Select(e => e.Dto()), total = rows.Sum(e => e.Amount) }, "Utility expenses retrieved successfully");
+    }
+
+    [HttpPost("utilities")]
+    public async Task<IActionResult> CreateUtility(JsonElement body)
+    {
+        var utility = new UtilityExpense
+        {
+            Id = Ids.New(),
+            Month = body.Int("month") ?? DateTime.UtcNow.Month,
+            Year = body.Int("year") ?? DateTime.UtcNow.Year,
+            Type = body.String("type") ?? "other",
+            Amount = body.Decimal("amount") ?? 0,
+            Notes = body.String("notes")
+        };
+        db.UtilityExpenses.Add(utility);
+        await db.SaveChangesAsync();
+        return CreatedResponse(new { utility = utility.Dto() }, "Utility expense added successfully");
+    }
+
+    [HttpPost("advances")]
+    public async Task<IActionResult> CreateAdvance(JsonElement body)
+    {
+        var advance = new AdvancePayment
+        {
+            Id = Ids.New(),
+            StudentId = body.String("studentId") ?? "",
+            Date = body.Date("date")?.Date ?? DateTime.UtcNow.Date,
+            Amount = body.Decimal("amount") ?? 0,
+            Notes = body.String("notes"),
+            ReceivedById = User.Id()!
+        };
+        if (!await db.Users.AnyAsync(u => u.Id == advance.StudentId && u.Role == "student")) return ErrorResponse(400, "Valid studentId is required");
+        db.AdvancePayments.Add(advance);
+        await db.SaveChangesAsync();
+        return CreatedResponse(new { advance = advance.Dto() }, "Advance payment added successfully");
+    }
+
     [HttpGet]
     public async Task<IActionResult> All(string? category, string? status, string? search)
     {
@@ -102,5 +186,29 @@ public class InventoryController(AppDbContext db) : ApiControllerBase
         item.Notes = body.String("notes") ?? item.Notes;
         item.RecalculateStatus();
         item.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static void AddItemHints(HashSet<string> names, string itemsJson)
+    {
+        using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(itemsJson) ? "[]" : itemsJson);
+        foreach (var item in doc.RootElement.EnumerateArray())
+        {
+            var name = item.TryGetProperty("name", out var nameValue) ? nameValue.GetString() : null;
+            if (!string.IsNullOrWhiteSpace(name)) names.Add(name);
+        }
+    }
+
+    private static decimal SumBazarItems(string itemsJson)
+    {
+        using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(itemsJson) ? "[]" : itemsJson);
+        var total = 0m;
+        foreach (var item in doc.RootElement.EnumerateArray())
+        {
+            var quantity = item.TryGetProperty("quantity", out var q) && q.TryGetDecimal(out var qv) ? qv : 0;
+            var price = item.TryGetProperty("price", out var p) && p.TryGetDecimal(out var pv) ? pv : 0;
+            var lineTotal = item.TryGetProperty("total", out var t) && t.TryGetDecimal(out var tv) ? tv : quantity * price;
+            total += lineTotal;
+        }
+        return total;
     }
 }

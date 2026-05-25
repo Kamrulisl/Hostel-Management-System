@@ -133,12 +133,17 @@ const Chat = () => {
     }
   };
 
-  const handleSend = () => {
-    if (message.trim() && socket && selectedUser) {
-      socket.emit("send-message", {
-        receiverId: selectedUser._id,
-        message: message.trim(),
-      });
+  const handleSend = async () => {
+    if (message.trim() && selectedUser) {
+      if (socket) {
+        socket.emit("send-message", {
+          receiverId: selectedUser._id,
+          message: message.trim(),
+        });
+      } else {
+        await messageService.sendMessage(selectedUser._id, message.trim());
+        loadConversation(selectedUser._id);
+      }
       setMessage("");
       handleStopTyping();
     }
@@ -389,7 +394,7 @@ const Chat = () => {
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          if (online) handleSend();
+                          handleSend();
                         }
                       }}
                       InputProps={{
@@ -398,7 +403,7 @@ const Chat = () => {
                             <IconButton
                               color="primary"
                               onClick={handleSend}
-                              disabled={!message.trim() || !online}
+                              disabled={!message.trim()}
                             >
                               <Send />
                             </IconButton>
@@ -412,8 +417,7 @@ const Chat = () => {
                         color="error"
                         sx={{ mt: 0.5, display: "block" }}
                       >
-                        Waiting for connection... Make sure the server is
-                        running.
+                        Live socket is offline. Messages will be sent normally.
                       </Typography>
                     )}
                   </Box>

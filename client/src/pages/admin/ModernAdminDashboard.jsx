@@ -13,13 +13,13 @@ import {
 import { usersService } from "../../services/users.service";
 import { billingService } from "../../services/billing.service";
 import { complaintsService } from "../../services/complaints.service";
-import { attendanceService } from "../../services/attendance.service";
 
 const ModernAdminDashboard = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalUsers: 0,
+    totalStudents: 0,
     monthlyRevenue: 0,
     activeComplaints: 0,
     resolvedComplaints: 0,
@@ -43,7 +43,8 @@ const ModernAdminDashboard = () => {
       try {
         const usersRes = await usersService.getAllUsers();
         const users = usersRes.data.users || usersRes.data || [];
-        setStats(prev => ({ ...prev, totalUsers: users.length }));
+        const students = users.filter((u) => u.role === "student" && u.isActive !== false);
+        setStats(prev => ({ ...prev, totalUsers: users.length, totalStudents: students.length }));
         setRecentUsers(users.slice(0, 4).map(u => ({
           name: u.name,
           email: u.email,
@@ -82,21 +83,6 @@ const ModernAdminDashboard = () => {
         console.log('Complaints data not available');
       }
 
-      // Fetch attendance
-      try {
-        const attendanceRes = await attendanceService.getAllAttendance();
-        const attendance = attendanceRes.data.attendance || [];
-        const today = new Date().toISOString().split('T')[0];
-        const todayAttendance = attendance.filter(a => 
-          a.date.startsWith(today) && a.approved
-        );
-        const totalStudents = stats.totalUsers || 100;
-        const rate = totalStudents > 0 ? Math.round((todayAttendance.length / totalStudents) * 100) : 0;
-        setStats(prev => ({ ...prev, attendanceRate: rate }));
-      } catch (error) {
-        console.log('Attendance data not available');
-      }
-
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -106,8 +92,8 @@ const ModernAdminDashboard = () => {
 
   const statsCards = [
     {
-      title: "Total Users",
-      value: stats.totalUsers,
+      title: "Total Students",
+      value: stats.totalStudents,
       icon: UsersIcon,
       color: "from-blue-500 to-blue-600",
       trend: "+8%",

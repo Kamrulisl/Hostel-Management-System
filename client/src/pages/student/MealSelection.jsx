@@ -2,6 +2,7 @@ import { useState } from 'react';
 import MealSelectionCalendar from '../../components/meals/MealSelectionCalendar';
 import MealSummary from '../../components/meals/MealSummary';
 import { CalendarDaysIcon } from '@heroicons/react/24/outline';
+import ModernLayout from '../../components/layout/ModernLayout';
 
 const MealSelection = () => {
   const now = new Date();
@@ -32,6 +33,7 @@ const MealSelection = () => {
   ];
 
   return (
+    <ModernLayout>
     <div className="min-h-screen bg-gradient-to-br from-secondary-50 via-violet-50/30 to-purple-50/30 dark:from-secondary-900 dark:via-violet-950/30 dark:to-purple-950/30 p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8">
@@ -109,6 +111,7 @@ const MealSelection = () => {
         </div>
       </div>
     </div>
+    </ModernLayout>
   );
 };
 

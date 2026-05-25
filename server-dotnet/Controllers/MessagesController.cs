@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 [Authorize]
 [Route("api/v1/messages")]
@@ -30,6 +31,31 @@ public class MessagesController(AppDbContext db) : ApiControllerBase
             .Take(100)
             .ToListAsync();
         return OkResponse(new { messages = messages.Select(m => m.Dto()) });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Send(JsonElement body)
+    {
+        var receiverId = body.String("receiverId");
+        var text = body.String("message") ?? body.String("text");
+        if (string.IsNullOrWhiteSpace(receiverId) || string.IsNullOrWhiteSpace(text))
+            return ErrorResponse(400, "receiverId and message are required");
+
+        if (!await db.Users.AnyAsync(u => u.Id == receiverId))
+            return ErrorResponse(404, "Receiver not found");
+
+        var message = new Message
+        {
+            Id = Ids.New(),
+            SenderId = User.Id()!,
+            ReceiverId = receiverId,
+            Text = text.Trim()
+        };
+        db.Messages.Add(message);
+        await db.SaveChangesAsync();
+
+        var saved = await db.Messages.Include(m => m.Sender).Include(m => m.Receiver).FirstAsync(m => m.Id == message.Id);
+        return CreatedResponse(new { message = saved.Dto() }, "Message sent successfully");
     }
 
     [HttpPatch("{userId}/read")]

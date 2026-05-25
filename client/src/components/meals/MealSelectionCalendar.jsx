@@ -22,10 +22,24 @@ const MealSelectionCalendar = ({ year, month }) => {
     lunch: 'default',
     dinner: 'default',
   });
+  const tomorrowIso = (() => {
+    const value = new Date();
+    value.setDate(value.getDate() + 1);
+    return toISODate(value);
+  })();
 
   useEffect(() => {
     fetchMealCalendar();
   }, [year, month]);
+
+  useEffect(() => {
+    if (loading || selectedDate) return;
+    const nextDay = new Date();
+    nextDay.setDate(nextDay.getDate() + 1);
+    if (nextDay.getFullYear() === year && nextDay.getMonth() + 1 === month) {
+      handleDateClick(nextDay);
+    }
+  }, [loading, mealSelections, selectedDate, year, month]);
 
   const fetchMealCalendar = async () => {
     try {
@@ -133,12 +147,14 @@ const MealSelectionCalendar = ({ year, month }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <input
             type="date"
+            min={tomorrowIso}
             value={holidayForm.startDate}
             onChange={(event) => setHolidayForm((prev) => ({ ...prev, startDate: event.target.value }))}
             className="px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-600 bg-white dark:bg-secondary-800"
           />
           <input
             type="date"
+            min={tomorrowIso}
             value={holidayForm.endDate}
             onChange={(event) => setHolidayForm((prev) => ({ ...prev, endDate: event.target.value }))}
             className="px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-600 bg-white dark:bg-secondary-800"
@@ -179,13 +195,18 @@ const MealSelectionCalendar = ({ year, month }) => {
               const mealCount = mealTypes.filter((type) => meal?.meals?.[type]).length;
               const pendingCount = mealTypes.filter((type) => meal?.choices?.[type]?.status === 'pending').length;
               const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
+              const today = new Date(new Date().toDateString());
+              const isPast = date < today;
+              const canEdit = meal?.canEdit ?? date > today;
 
               return (
                 <button
                   key={date.toISOString()}
                   onClick={() => handleDateClick(date)}
                   className={`p-3 rounded-lg font-semibold transition-all duration-300 min-h-[76px] ${
-                    isSelected
+                    isPast
+                      ? 'bg-secondary-200 dark:bg-secondary-900 text-secondary-400 dark:text-secondary-500'
+                      : isSelected
                       ? 'bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg'
                       : pendingCount > 0
                       ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
@@ -194,10 +215,11 @@ const MealSelectionCalendar = ({ year, month }) => {
                       : 'bg-secondary-100 dark:bg-secondary-700 text-secondary-700 dark:text-secondary-300'
                   }`}
                 >
-                  <div className="text-sm">{date.getDate()}</div>
-                  <div className="text-xs mt-1 opacity-80">{mealCount} meals</div>
-                  {pendingCount > 0 && <div className="text-xs mt-1">Pending {pendingCount}</div>}
-                </button>
+	                  <div className="text-sm">{date.getDate()}</div>
+	                  <div className="text-xs mt-1 opacity-80">{mealCount} meals</div>
+	                  {pendingCount > 0 && <div className="text-xs mt-1">Pending {pendingCount}</div>}
+	                  {!canEdit && <div className="text-xs mt-1">Locked</div>}
+	                </button>
               );
             })}
           </div>

@@ -10,6 +10,9 @@ export const messageService = {
   // Get available users to chat with
   getAvailableUsers: () => api.get("/messages/users"),
 
+  sendMessage: (receiverId, message) =>
+    api.post("/messages", { receiverId, message }),
+
   // Mark messages as read
   markAsRead: (userId) => api.patch(`/messages/${userId}/read`),
 };

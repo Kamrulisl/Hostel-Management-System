@@ -239,6 +239,38 @@ public class InventoryItem : BaseEntity
     public object Dto() => new { _id = Id, id = Id, itemName = ItemName, category = Category, quantity = Quantity, unit = Unit, minThreshold = MinThreshold, price = Price, supplier = Supplier, lastRestocked = LastRestocked, expiryDate = ExpiryDate, status = Status, notes = Notes, createdAt = CreatedAt, updatedAt = UpdatedAt };
 }
 
+public class DailyBazar : BaseEntity
+{
+    public DateTime Date { get; set; }
+    public string ItemsJson { get; set; } = "[]";
+    public decimal TotalAmount { get; set; }
+    public string CreatedById { get; set; } = "";
+    public User? CreatedBy { get; set; }
+    public string? Notes { get; set; }
+    public object Dto() => new { _id = Id, id = Id, date = Date, items = Json.Parse(ItemsJson), totalAmount = TotalAmount, createdBy = CreatedBy?.Mini() ?? CreatedById, notes = Notes, createdAt = CreatedAt, updatedAt = UpdatedAt };
+}
+
+public class UtilityExpense : BaseEntity
+{
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public string Type { get; set; } = "";
+    public decimal Amount { get; set; }
+    public string? Notes { get; set; }
+    public object Dto() => new { _id = Id, id = Id, month = Month, year = Year, type = Type, amount = Amount, notes = Notes, createdAt = CreatedAt, updatedAt = UpdatedAt };
+}
+
+public class AdvancePayment : BaseEntity
+{
+    public string StudentId { get; set; } = "";
+    public User? Student { get; set; }
+    public DateTime Date { get; set; }
+    public decimal Amount { get; set; }
+    public string ReceivedById { get; set; } = "";
+    public string? Notes { get; set; }
+    public object Dto() => new { _id = Id, id = Id, student = Student?.Mini() ?? StudentId, date = Date, amount = Amount, receivedBy = ReceivedById, notes = Notes, createdAt = CreatedAt, updatedAt = UpdatedAt };
+}
+
 public class Bill : BaseEntity
 {
     public string StudentId { get; set; } = "";
@@ -248,6 +280,10 @@ public class Bill : BaseEntity
     public int TotalMeals { get; set; }
     public decimal MealCost { get; set; }
     public decimal FixedCost { get; set; } = 2000;
+    public decimal UtilityCost { get; set; }
+    public decimal AdvancePaid { get; set; }
+    public decimal PreviousDue { get; set; }
+    public decimal MealRate { get; set; }
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = "DUE";
     public DateTime? PaidAt { get; set; }
@@ -260,7 +296,7 @@ public class Bill : BaseEntity
     public int DinnerCount { get; set; }
     public decimal DinnerRate { get; set; }
     public string? GeneratedById { get; set; }
-    public object Dto() => new { _id = Id, id = Id, student = Student?.Mini() ?? StudentId, month = Month, year = Year, totalMeals = TotalMeals, mealCost = MealCost, fixedCost = FixedCost, totalAmount = TotalAmount, status = Status, paidAt = PaidAt, paymentMethod = PaymentMethod, transactionId = TransactionId, breakdown = new { breakfast = new { count = BreakfastCount, rate = BreakfastRate, total = BreakfastCount * BreakfastRate }, lunch = new { count = LunchCount, rate = LunchRate, total = LunchCount * LunchRate }, dinner = new { count = DinnerCount, rate = DinnerRate, total = DinnerCount * DinnerRate } }, generatedBy = GeneratedById, createdAt = CreatedAt, updatedAt = UpdatedAt };
+    public object Dto() => new { _id = Id, id = Id, student = Student?.Mini() ?? StudentId, month = Month, year = Year, totalMeals = TotalMeals, mealCost = MealCost, fixedCost = FixedCost, utilityCost = UtilityCost, advancePaid = AdvancePaid, previousDue = PreviousDue, mealRate = MealRate, totalAmount = TotalAmount, status = Status, paidAt = PaidAt, paymentMethod = PaymentMethod, transactionId = TransactionId, breakdown = new { breakfast = new { count = BreakfastCount, rate = BreakfastRate, total = BreakfastCount * BreakfastRate }, lunch = new { count = LunchCount, rate = LunchRate, total = LunchCount * LunchRate }, dinner = new { count = DinnerCount, rate = DinnerRate, total = DinnerCount * DinnerRate } }, generatedBy = GeneratedById, createdAt = CreatedAt, updatedAt = UpdatedAt };
 }
 
 public class Message : BaseEntity

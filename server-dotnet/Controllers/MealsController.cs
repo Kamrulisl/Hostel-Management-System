@@ -114,6 +114,15 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
         holiday.StartDate = body.Date("startDate")?.Date ?? holiday.StartDate;
         holiday.EndDate = body.Date("endDate")?.Date ?? holiday.EndDate;
         holiday.Reason = body.String("reason") ?? holiday.Reason;
+        if (holiday.IsEnabled)
+        {
+            var tomorrow = DateTime.Now.Date.AddDays(1);
+            if (holiday.StartDate is null) holiday.StartDate = tomorrow;
+            if (holiday.StartDate.Value.Date < tomorrow && !(holiday.EndDate is not null && holiday.EndDate.Value.Date >= tomorrow))
+                return ErrorResponse(400, "Holiday mode can be started from tomorrow or edited for remaining future days only");
+            if (holiday.EndDate is not null && holiday.EndDate.Value.Date < tomorrow)
+                return ErrorResponse(400, "Holiday end date must include a future day");
+        }
         holiday.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return OkResponse(new { holidayMode = holiday.Dto() }, "Holiday mode updated successfully");
