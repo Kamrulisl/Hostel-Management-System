@@ -183,15 +183,15 @@ public class BillingController(AppDbContext db, AuditService audit) : ApiControl
             db.Settings.Add(settings);
         }
         var selections = await db.MealSelections.Where(m => m.StudentId == studentId && m.Date.Year == year && m.Date.Month == month).ToListAsync();
-        var holiday = await db.StudentHolidayModes.FirstOrDefaultAsync(h => h.StudentId == studentId);
+        var holidays = await db.StudentHolidayModes.Where(h => h.StudentId == studentId && h.IsEnabled).ToListAsync();
         var daysInMonth = DateTime.DaysInMonth(year, month);
         var today = DateTime.Now.Date;
         var monthEndForBilling = new DateTime(year, month, daysInMonth);
         if (monthEndForBilling > today) monthEndForBilling = today;
         var billableDays = monthEndForBilling.Year == year && monthEndForBilling.Month == month ? monthEndForBilling.Day : 0;
-        var breakfast = CountBillableMeals(selections, holiday, year, month, billableDays, "breakfast");
-        var lunch = CountBillableMeals(selections, holiday, year, month, billableDays, "lunch");
-        var dinner = CountBillableMeals(selections, holiday, year, month, billableDays, "dinner");
+        var breakfast = CountBillableMeals(selections, holidays, year, month, billableDays, "breakfast");
+        var lunch = CountBillableMeals(selections, holidays, year, month, billableDays, "lunch");
+        var dinner = CountBillableMeals(selections, holidays, year, month, billableDays, "dinner");
         var totalMeals = breakfast + lunch + dinner;
         var monthStart = new DateTime(year, month, 1);
         var monthEnd = monthStart.AddMonths(1).AddDays(-1);
@@ -201,7 +201,7 @@ public class BillingController(AppDbContext db, AuditService audit) : ApiControl
         foreach (var id in allStudents)
         {
             var rows = await db.MealSelections.Where(m => m.StudentId == id && m.Date.Year == year && m.Date.Month == month).ToListAsync();
-            var h = await db.StudentHolidayModes.FirstOrDefaultAsync(x => x.StudentId == id);
+            var h = await db.StudentHolidayModes.Where(x => x.StudentId == id && x.IsEnabled).ToListAsync();
             allMeals += CountBillableMeals(rows, h, year, month, billableDays, "breakfast");
             allMeals += CountBillableMeals(rows, h, year, month, billableDays, "lunch");
             allMeals += CountBillableMeals(rows, h, year, month, billableDays, "dinner");
@@ -245,13 +245,13 @@ public class BillingController(AppDbContext db, AuditService audit) : ApiControl
         return bill;
     }
 
-    private static int CountBillableMeals(List<MealSelection> selections, StudentHolidayMode? holiday, int year, int month, int daysInMonth, string mealType)
+    private static int CountBillableMeals(List<MealSelection> selections, List<StudentHolidayMode> holidays, int year, int month, int daysInMonth, string mealType)
     {
         var count = 0;
         for (var day = 1; day <= daysInMonth; day++)
         {
             var date = new DateTime(year, month, day);
-            if (holiday?.IsEnabled == true && (holiday.StartDate is null || date >= holiday.StartDate.Value.Date) && (holiday.EndDate is null || date <= holiday.EndDate.Value.Date))
+            if (holidays.Any(holiday => (holiday.StartDate is null || date >= holiday.StartDate.Value.Date) && (holiday.EndDate is null || date <= holiday.EndDate.Value.Date)))
                 continue;
 
             var selection = selections.FirstOrDefault(m => m.Date.Date == date);

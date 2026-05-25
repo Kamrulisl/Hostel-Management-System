@@ -95,18 +95,33 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
     [HttpGet("holiday-mode")]
     public async Task<IActionResult> MyHolidayMode()
     {
-        var holiday = await db.StudentHolidayModes.FirstOrDefaultAsync(h => h.StudentId == User.Id());
-        return OkResponse(new { holidayMode = holiday?.Dto() ?? new { isEnabled = false } }, "Holiday mode retrieved successfully");
+        var today = DateTime.Now.Date;
+        var holidays = await db.StudentHolidayModes
+            .Where(h => h.StudentId == User.Id())
+            .OrderBy(h => h.StartDate)
+            .ThenBy(h => h.EndDate)
+            .ToListAsync();
+        var active = holidays.FirstOrDefault(h => h.IsEnabled && HolidayContains(h, today))
+            ?? holidays.FirstOrDefault(h => h.IsEnabled && (h.EndDate is null || h.EndDate.Value.Date >= today));
+        return OkResponse(new
+        {
+            holidayMode = active?.Dto() ?? new { isEnabled = false },
+            holidays = holidays.Select(h => h.Dto())
+        }, "Holiday mode retrieved successfully");
     }
 
     [Authorize(Roles = "student")]
     [HttpPost("holiday-mode")]
     public async Task<IActionResult> SaveHolidayMode(JsonElement body)
     {
-        var holiday = await db.StudentHolidayModes.FirstOrDefaultAsync(h => h.StudentId == User.Id());
+        var id = body.String("id") ?? body.String("_id");
+        var studentId = User.Id()!;
+        var holiday = string.IsNullOrWhiteSpace(id)
+            ? null
+            : await db.StudentHolidayModes.FirstOrDefaultAsync(h => h.Id == id && h.StudentId == studentId);
         if (holiday is null)
         {
-            holiday = new StudentHolidayMode { Id = Ids.New(), StudentId = User.Id()! };
+            holiday = new StudentHolidayMode { Id = Ids.New(), StudentId = studentId };
             db.StudentHolidayModes.Add(holiday);
         }
 
@@ -124,6 +139,18 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
                 return ErrorResponse(400, "Holiday end date must be a future date");
             if (holiday.EndDate is not null && holiday.EndDate.Value.Date < holiday.StartDate.Value.Date)
                 return ErrorResponse(400, "Holiday end date cannot be before start date");
+
+            var start = holiday.StartDate.Value.Date;
+            var end = holiday.EndDate?.Date ?? DateTime.MaxValue.Date;
+            var overlaps = await db.StudentHolidayModes.AnyAsync(h =>
+                h.Id != holiday.Id &&
+                h.StudentId == studentId &&
+                h.IsEnabled &&
+                h.StartDate != null &&
+                h.StartDate.Value.Date <= end &&
+                (h.EndDate == null || h.EndDate.Value.Date >= start));
+            if (overlaps)
+                return ErrorResponse(400, "Holiday date range overlaps with another active holiday");
         }
         holiday.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
@@ -333,8 +360,11 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
 
     private async Task<EffectiveMealChoice> DisplayChoice(string studentId, DateTime date, string mealType)
     {
-        var holiday = await db.StudentHolidayModes.FirstOrDefaultAsync(h => h.StudentId == studentId);
-        if (holiday?.IsEnabled == true && (holiday.StartDate is null || date >= holiday.StartDate.Value.Date) && (holiday.EndDate is null || date <= holiday.EndDate.Value.Date))
+        var isHoliday = await db.StudentHolidayModes.AnyAsync(h =>
+            h.StudentId == studentId && h.IsEnabled &&
+            (h.StartDate == null || date >= h.StartDate.Value.Date) &&
+            (h.EndDate == null || date <= h.EndDate.Value.Date));
+        if (isHoliday)
             return new EffectiveMealChoice("cancel", "approved", Array.Empty<object>());
 
         var selection = await db.MealSelections.FirstOrDefaultAsync(m => m.StudentId == studentId && m.Date == date);
@@ -349,8 +379,11 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
 
     private async Task<EffectiveMealChoice> EffectiveChoice(string studentId, DateTime date, string mealType)
     {
-        var holiday = await db.StudentHolidayModes.FirstOrDefaultAsync(h => h.StudentId == studentId);
-        if (holiday?.IsEnabled == true && (holiday.StartDate is null || date >= holiday.StartDate.Value.Date) && (holiday.EndDate is null || date <= holiday.EndDate.Value.Date))
+        var isHoliday = await db.StudentHolidayModes.AnyAsync(h =>
+            h.StudentId == studentId && h.IsEnabled &&
+            (h.StartDate == null || date >= h.StartDate.Value.Date) &&
+            (h.EndDate == null || date <= h.EndDate.Value.Date));
+        if (isHoliday)
             return new EffectiveMealChoice("cancel", "approved", Array.Empty<object>());
 
         var selection = await db.MealSelections.FirstOrDefaultAsync(m => m.StudentId == studentId && m.Date == date);
@@ -496,6 +529,10 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
     }
 
     private static bool CanChangeMeal(DateTime mealDate) => DateTime.Now < mealDate.Date;
+    private static bool HolidayContains(StudentHolidayMode holiday, DateTime date) =>
+        holiday.IsEnabled &&
+        (holiday.StartDate is null || date >= holiday.StartDate.Value.Date) &&
+        (holiday.EndDate is null || date <= holiday.EndDate.Value.Date);
 
     private static void SetMeal(MealSelection selection, string mealType, string choice, string status, string itemsJson)
     {

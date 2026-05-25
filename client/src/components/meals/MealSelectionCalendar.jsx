@@ -4,12 +4,27 @@ import toast from 'react-hot-toast';
 import { toISODate } from '../../utils/formatDate';
 
 const mealTypes = ['breakfast', 'lunch', 'dinner'];
+const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+const DateTextField = ({ value, onChange, min }) => (
+  <input
+    type="text"
+    inputMode="numeric"
+    placeholder="YYYY-MM-DD"
+    value={value}
+    onChange={(event) => onChange(event.target.value)}
+    className="px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-600 bg-white dark:bg-secondary-800"
+    aria-label={`Date in YYYY-MM-DD format, earliest ${min}`}
+  />
+);
 
 const MealSelectionCalendar = ({ year, month }) => {
   const [mealSelections, setMealSelections] = useState([]);
   const [schedule, setSchedule] = useState([]);
   const [holidayMode, setHolidayMode] = useState({ isEnabled: false });
+  const [holidayRanges, setHolidayRanges] = useState([]);
   const [holidayForm, setHolidayForm] = useState({
+    id: '',
     isEnabled: false,
     startDate: '',
     endDate: '',
@@ -52,10 +67,13 @@ const MealSelectionCalendar = ({ year, month }) => {
       setMealSelections(calendarRes.data.mealSelections || []);
       setSchedule(scheduleRes.data.schedule || []);
       const nextHolidayMode = holidayRes.data.holidayMode || { isEnabled: false };
+      const nextHolidayRanges = holidayRes.data.holidays || [];
       setHolidayMode(nextHolidayMode);
+      setHolidayRanges(nextHolidayRanges);
       const savedStartDate = nextHolidayMode.startDate ? toISODate(nextHolidayMode.startDate) : '';
       const savedEndDate = nextHolidayMode.endDate ? toISODate(nextHolidayMode.endDate) : '';
       setHolidayForm({
+        id: nextHolidayMode.id || nextHolidayMode._id || '',
         isEnabled: !!nextHolidayMode.isEnabled,
         startDate: savedStartDate && savedStartDate < tomorrowIso ? tomorrowIso : savedStartDate,
         endDate: savedEndDate && savedEndDate < tomorrowIso ? '' : savedEndDate,
@@ -100,8 +118,16 @@ const MealSelectionCalendar = ({ year, month }) => {
 
   const handleHolidaySave = async () => {
     if (holidayForm.isEnabled) {
+      if (!datePattern.test(holidayForm.startDate || '')) {
+        toast.error('Use date format YYYY-MM-DD');
+        return;
+      }
       if (!holidayForm.startDate || holidayForm.startDate < tomorrowIso) {
         toast.error('Holiday mode must start from a future date');
+        return;
+      }
+      if (holidayForm.endDate && !datePattern.test(holidayForm.endDate)) {
+        toast.error('Use date format YYYY-MM-DD');
         return;
       }
       if (holidayForm.endDate && holidayForm.endDate < tomorrowIso) {
@@ -119,6 +145,44 @@ const MealSelectionCalendar = ({ year, month }) => {
       await fetchMealCalendar();
     } catch (error) {
       toast.error(error.message || 'Failed to update holiday mode');
+    }
+  };
+
+  const resetHolidayForm = () => {
+    setHolidayForm({
+      id: '',
+      isEnabled: true,
+      startDate: tomorrowIso,
+      endDate: '',
+      reason: '',
+    });
+  };
+
+  const editHolidayRange = (range) => {
+    const startDate = range.startDate ? toISODate(range.startDate) : tomorrowIso;
+    const endDate = range.endDate ? toISODate(range.endDate) : '';
+    setHolidayForm({
+      id: range.id || range._id || '',
+      isEnabled: !!range.isEnabled,
+      startDate: startDate < tomorrowIso ? tomorrowIso : startDate,
+      endDate: endDate && endDate < tomorrowIso ? '' : endDate,
+      reason: range.reason || '',
+    });
+  };
+
+  const disableHolidayRange = async (range) => {
+    try {
+      await mealSelectionService.updateHolidayMode({
+        id: range.id || range._id,
+        isEnabled: false,
+        startDate: range.startDate ? toISODate(range.startDate) : tomorrowIso,
+        endDate: range.endDate ? toISODate(range.endDate) : '',
+        reason: range.reason || '',
+      });
+      toast.success('Holiday range disabled');
+      await fetchMealCalendar();
+    } catch (error) {
+      toast.error(error.message || 'Failed to disable holiday range');
     }
   };
 
@@ -161,19 +225,15 @@ const MealSelectionCalendar = ({ year, month }) => {
           Holiday mode
         </label>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input
-            type="date"
-            min={tomorrowIso}
+          <DateTextField
             value={holidayForm.startDate}
-            onChange={(event) => setHolidayForm((prev) => ({ ...prev, startDate: event.target.value }))}
-            className="px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-600 bg-white dark:bg-secondary-800"
-          />
-          <input
-            type="date"
             min={tomorrowIso}
+            onChange={(value) => setHolidayForm((prev) => ({ ...prev, startDate: value }))}
+          />
+          <DateTextField
             value={holidayForm.endDate}
-            onChange={(event) => setHolidayForm((prev) => ({ ...prev, endDate: event.target.value }))}
-            className="px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-600 bg-white dark:bg-secondary-800"
+            min={tomorrowIso}
+            onChange={(value) => setHolidayForm((prev) => ({ ...prev, endDate: value }))}
           />
           <input
             type="text"
@@ -183,12 +243,59 @@ const MealSelectionCalendar = ({ year, month }) => {
             className="px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-600 bg-white dark:bg-secondary-800"
           />
         </div>
-        <button
-          onClick={handleHolidaySave}
-          className="mt-3 px-4 py-2 bg-violet-600 text-white rounded-lg font-semibold hover:bg-violet-700"
-        >
-          Save Holiday Mode
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            onClick={handleHolidaySave}
+            className="px-4 py-2 bg-violet-600 text-white rounded-lg font-semibold hover:bg-violet-700"
+          >
+            Save Holiday Mode
+          </button>
+          <button
+            onClick={resetHolidayForm}
+            className="px-4 py-2 bg-secondary-200 dark:bg-secondary-700 text-secondary-700 dark:text-secondary-200 rounded-lg font-semibold"
+          >
+            New Holiday
+          </button>
+        </div>
+
+        {holidayRanges.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {holidayRanges.map((range) => {
+              const id = range.id || range._id;
+              const startDate = range.startDate ? toISODate(range.startDate) : '';
+              const endDate = range.endDate ? toISODate(range.endDate) : 'Open';
+              const isPastRange = endDate !== 'Open' && endDate < tomorrowIso;
+              return (
+                <div key={id} className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3 rounded-lg bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700">
+                  <div>
+                    <div className="font-semibold text-secondary-800 dark:text-secondary-100">
+                      {startDate} to {endDate}
+                    </div>
+                    <div className="text-sm text-secondary-500">
+                      {range.isEnabled ? 'Enabled' : 'Disabled'}{range.reason ? ` - ${range.reason}` : ''}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => editHolidayRange(range)}
+                      disabled={isPastRange}
+                      className="px-3 py-2 rounded-lg bg-secondary-100 dark:bg-secondary-700 text-secondary-700 dark:text-secondary-200 disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => disableHolidayRange(range)}
+                      disabled={!range.isEnabled || isPastRange}
+                      className="px-3 py-2 rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 disabled:opacity-50"
+                    >
+                      Off
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {loading ? (

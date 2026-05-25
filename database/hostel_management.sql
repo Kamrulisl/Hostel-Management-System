@@ -986,7 +986,7 @@ CREATE INDEX "IX_Notices_CreatedById" ON public."Notices" USING btree ("CreatedB
 -- Name: IX_StudentHolidayModes_StudentId; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX "IX_StudentHolidayModes_StudentId" ON public."StudentHolidayModes" USING btree ("StudentId");
+CREATE INDEX "IX_StudentHolidayModes_StudentId" ON public."StudentHolidayModes" USING btree ("StudentId");
 
 
 --
@@ -1150,4 +1150,3 @@ ALTER TABLE ONLY public."StudentHolidayModes"
 --
 
 \unrestrict wev9eRlM9bC01OJnCqCAxZc5PKdsL3WfnSA92VEh2qd9bTSa1h3vZ3rF4XsavfO
-
