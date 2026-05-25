@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogActions,
   Alert,
+  Divider,
 } from "@mui/material";
 import {
   Receipt,
@@ -28,6 +29,7 @@ import ModernLayout from "../../components/layout/ModernLayout";
 import StripePaymentForm from "../../components/billing/StripePaymentForm";
 import { billingService } from "../../services/billing.service";
 import toast from "react-hot-toast";
+import { formatDate } from "../../utils/formatDate";
 
 // Initialize Stripe
 console.log('Stripe Public Key:', import.meta.env.VITE_STRIPE_PUBLIC_KEY);
@@ -35,6 +37,7 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 const ModernMyBill = () => {
   const [bills, setBills] = useState([]);
+  const [advances, setAdvances] = useState([]);
   const [loading, setLoading] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
@@ -46,8 +49,12 @@ const ModernMyBill = () => {
   const fetchBills = async () => {
     setLoading(true);
     try {
-      const response = await billingService.getMyBills();
-      setBills(response.data.bills || []);
+      const [billsRes, advancesRes] = await Promise.all([
+        billingService.getMyBills(),
+        billingService.getMyAdvances(),
+      ]);
+      setBills(billsRes.data.bills || []);
+      setAdvances(advancesRes.data.advances || []);
     } catch (error) {
       console.error("Error fetching bills:", error);
       toast.error("Failed to load bills");
@@ -80,6 +87,12 @@ const ModernMyBill = () => {
       toast.error("Failed to download bill");
     }
   };
+
+  const advancesForBill = (bill) =>
+    advances.filter((advance) => {
+      const date = new Date(advance.date);
+      return date.getMonth() + 1 === bill.month && date.getFullYear() === bill.year;
+    });
 
   return (
     <ModernLayout>
@@ -201,6 +214,74 @@ const ModernMyBill = () => {
                       </Box>
 
                       {/* Total */}
+                      <Box sx={{ mb: 2 }}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.75 }}>
+                          <Typography variant="body2" color="text.secondary">Meal rate</Typography>
+                          <Typography variant="body2" fontWeight={600}>৳{bill.mealRate || 0}</Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.75 }}>
+                          <Typography variant="body2" color="text.secondary">Meal cost</Typography>
+                          <Typography variant="body2" fontWeight={600}>৳{bill.mealCost || 0}</Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.75 }}>
+                          <Typography variant="body2" color="text.secondary">Utility share</Typography>
+                          <Typography variant="body2" fontWeight={600}>৳{bill.utilityCost || 0}</Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.75 }}>
+                          <Typography variant="body2" color="text.secondary">Old due</Typography>
+                          <Typography variant="body2" fontWeight={600} color={(bill.previousDue || 0) > 0 ? "warning.main" : "text.primary"}>
+                            ৳{bill.previousDue || 0}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.75 }}>
+                          <Typography variant="body2" color="text.secondary">Advance paid</Typography>
+                          <Typography variant="body2" fontWeight={600} color={(bill.advancePaid || 0) > 0 ? "success.main" : "text.primary"}>
+                            -৳{bill.advancePaid || 0}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      <Divider sx={{ my: 2 }} />
+
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                          Advance Payments
+                        </Typography>
+                        {advancesForBill(bill).length === 0 ? (
+                          <Typography variant="caption" color="text.secondary">
+                            No advance payment recorded for this month.
+                          </Typography>
+                        ) : (
+                          advancesForBill(bill).map((advance) => (
+                            <Box
+                              key={advance._id}
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                gap: 2,
+                                py: 0.75,
+                                borderBottom: "1px solid",
+                                borderColor: "divider",
+                              }}
+                            >
+                              <Box>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {formatDate(advance.date)}
+                                </Typography>
+                                {advance.notes && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {advance.notes}
+                                  </Typography>
+                                )}
+                              </Box>
+                              <Typography variant="body2" fontWeight={700} color="success.main">
+                                ৳{advance.amount}
+                              </Typography>
+                            </Box>
+                          ))
+                        )}
+                      </Box>
+
                       <Box
                         sx={{
                           display: "flex",

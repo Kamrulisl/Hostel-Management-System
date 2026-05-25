@@ -10,9 +10,9 @@ import {
   ArrowTrendingUpIcon,
   BanknotesIcon,
 } from '@heroicons/react/24/outline';
-import { menuService } from '../../services/menu.service';
 import { billingService } from '../../services/billing.service';
 import { mealSelectionService } from '../../services/mealSelection.service';
+import { toISODate } from '../../utils/formatDate';
 
 const ModernStudentDashboard = () => {
   const { user } = useAuth();
@@ -35,13 +35,25 @@ const ModernStudentDashboard = () => {
       const currentMonth = new Date().getMonth();
       const currentYear = new Date().getFullYear();
 
+      const today = toISODate(new Date());
       const [menuRes, billsRes, mealRes] = await Promise.all([
-        menuService.getTodayMenu(),
+        mealSelectionService.getMyMenu(today),
         billingService.getMyBills(),
         mealSelectionService.getMealSummary(currentYear, currentMonth + 1),
       ]);
 
-      setTodayMenu(menuRes.data.menu ? Object.values(menuRes.data.menu).filter(m => m && m._id) : []);
+      const todaySelection = menuRes.data.menu;
+      const menuItems = ['breakfast', 'lunch', 'dinner'].map((mealType) => {
+        const choice = todaySelection?.choices?.[mealType] || {};
+        return {
+          _id: `${today}-${mealType}`,
+          mealType,
+          choice: choice.choice || 'default',
+          status: choice.status || 'approved',
+          items: choice.items || [],
+        };
+      });
+      setTodayMenu(menuItems);
       
       const bills = billsRes.data.bills || [];
       const pendingBills = bills.filter((b) => b.status === 'DUE');
@@ -235,6 +247,9 @@ const ModernStudentDashboard = () => {
                       <h3 className="text-lg font-bold capitalize mb-2">
                         {menu.mealType}
                       </h3>
+                      <p className="text-xs font-semibold uppercase tracking-wide opacity-80 mb-2">
+                        {menu.choice} · {menu.status}
+                      </p>
                       <p className="text-sm opacity-90">
                         {menu.items?.slice(0, 2).map((item) => item.name || item).join(', ')}
                         {menu.items?.length > 2 && '...'}

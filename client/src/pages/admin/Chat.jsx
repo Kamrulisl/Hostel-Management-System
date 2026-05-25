@@ -47,6 +47,14 @@ const Chat = () => {
     }
   }, [selectedUser]);
 
+  useEffect(() => {
+    if (!selectedUser || online) return;
+    const interval = setInterval(() => {
+      loadConversation(selectedUser._id, true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [selectedUser, online]);
+
   // Socket event listeners
   useEffect(() => {
     if (!socket) return;
@@ -115,9 +123,9 @@ const Chat = () => {
     }
   };
 
-  const loadConversation = async (userId) => {
+  const loadConversation = async (userId, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await messageService.getConversation(userId);
       const msgs = (response.data.messages || []).map((msg) => ({
         ...msg,
@@ -128,13 +136,13 @@ const Chat = () => {
     } catch (error) {
       console.error("Error loading conversation:", error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   const handleSend = async () => {
     if (message.trim() && selectedUser) {
-      if (socket) {
+      if (socket && online) {
         socket.emit("send-message", {
           receiverId: selectedUser._id,
           message: message.trim(),
@@ -149,7 +157,7 @@ const Chat = () => {
   };
 
   const handleTyping = () => {
-    if (socket && selectedUser) {
+    if (socket && online && selectedUser) {
       socket.emit("typing", { receiverId: selectedUser._id });
 
       if (typingTimeoutRef.current) {
@@ -163,7 +171,7 @@ const Chat = () => {
   };
 
   const handleStopTyping = () => {
-    if (socket && selectedUser) {
+    if (socket && online && selectedUser) {
       socket.emit("stop-typing", { receiverId: selectedUser._id });
     }
   };

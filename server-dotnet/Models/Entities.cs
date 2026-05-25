@@ -296,7 +296,7 @@ public class Bill : BaseEntity
     public int DinnerCount { get; set; }
     public decimal DinnerRate { get; set; }
     public string? GeneratedById { get; set; }
-    public object Dto() => new { _id = Id, id = Id, student = Student?.Mini() ?? StudentId, month = Month, year = Year, totalMeals = TotalMeals, mealCost = MealCost, fixedCost = FixedCost, utilityCost = UtilityCost, advancePaid = AdvancePaid, previousDue = PreviousDue, mealRate = MealRate, totalAmount = TotalAmount, status = Status, paidAt = PaidAt, paymentMethod = PaymentMethod, transactionId = TransactionId, breakdown = new { breakfast = new { count = BreakfastCount, rate = BreakfastRate, total = BreakfastCount * BreakfastRate }, lunch = new { count = LunchCount, rate = LunchRate, total = LunchCount * LunchRate }, dinner = new { count = DinnerCount, rate = DinnerRate, total = DinnerCount * DinnerRate } }, generatedBy = GeneratedById, createdAt = CreatedAt, updatedAt = UpdatedAt };
+    public object Dto() => new { _id = Id, id = Id, student = Student?.Mini() ?? StudentId, month = Month, year = Year, totalMeals = TotalMeals, mealCost = MealCost, fixedCost = FixedCost, utilityCost = UtilityCost, advancePaid = AdvancePaid, previousDue = PreviousDue, mealRate = MealRate, totalAmount = TotalAmount, status = Status, paidAt = PaidAt, paymentMethod = PaymentMethod, transactionId = TransactionId, breakdown = new { breakfast = new { count = BreakfastCount, rate = MealRate, total = BreakfastCount * MealRate }, lunch = new { count = LunchCount, rate = MealRate, total = LunchCount * MealRate }, dinner = new { count = DinnerCount, rate = MealRate, total = DinnerCount * MealRate } }, generatedBy = GeneratedById, createdAt = CreatedAt, updatedAt = UpdatedAt };
 }
 
 public class Message : BaseEntity

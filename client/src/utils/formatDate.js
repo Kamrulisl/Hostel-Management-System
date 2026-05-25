@@ -1,29 +1,24 @@
 export const formatDate = (date) => {
   if (!date) return "";
   const d = new Date(date);
-  return d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return toISODate(d);
 };
 
 export const formatDateTime = (date) => {
   if (!date) return "";
   const d = new Date(date);
-  return d.toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${toISODate(d)} ${hours}:${minutes}`;
 };
 
 export const toISODate = (date) => {
   if (!date) return "";
   const d = new Date(date);
-  return d.toISOString().split("T")[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 export const getCurrentMonth = () => {

@@ -2,6 +2,14 @@ import api from "./api";
 
 export const billingService = {
   getMyBills: () => api.get("/billing/me"),
+  getMyAdvances: (month, year) => {
+    let url = "/billing/advances/me";
+    const params = new URLSearchParams();
+    if (month) params.append("month", month);
+    if (year) params.append("year", year);
+    if (params.toString()) url += `?${params.toString()}`;
+    return api.get(url);
+  },
   getMyBill: (month, year) =>
     api.get(`/billing/me?month=${month}&year=${year}`),
   getAllBills: (month, year) => {

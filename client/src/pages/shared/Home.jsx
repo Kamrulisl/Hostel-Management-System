@@ -11,7 +11,7 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { menuService } from '../../services/menu.service';
-import { attendanceService } from '../../services/attendance.service';
+import { mealSelectionService } from '../../services/mealSelection.service';
 import { billingService } from '../../services/billing.service';
 import { noticesService } from '../../services/notices.service';
 import { toISODate } from '../../utils/formatDate';
@@ -22,8 +22,8 @@ const Home = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [todaysMeals, setTodaysMeals] = useState([]);
   const [liveStats, setLiveStats] = useState({
-    studentsPresent: 0,
-    mealsServed: 0,
+    selectedMeals: 0,
+    mealsToCook: 0,
     pendingPayments: 0,
   });
   const [notices, setNotices] = useState([]);
@@ -64,24 +64,32 @@ const Home = () => {
       }));
       setTodaysMeals(mealsData);
 
-      // Fetch attendance stats (if user is logged in)
+      // Fetch meal selection stats (if user is logged in)
       if (user) {
         try {
-          const attendanceRes = await attendanceService.getAllAttendance();
-          const todayAttendance = (attendanceRes.data.attendance || []).filter(
-            (a) => toISODate(new Date(a.date)) === today && a.approved
-          );
-          
-          // Count unique students
-          const uniqueStudents = new Set(todayAttendance.map(a => a.userId?._id || a.userId));
-          
+          let selectedMeals = 0;
+          if (user.role === 'student') {
+            const summaryRes = await mealSelectionService.getMealSummary(
+              new Date().getFullYear(),
+              new Date().getMonth() + 1,
+            );
+            selectedMeals = summaryRes.data.summary?.totalMeals || 0;
+          } else {
+            const countsRes = await mealSelectionService.getCookingCounts(today);
+            const counts = countsRes.data.counts || {};
+            selectedMeals = Object.values(counts).reduce(
+              (sum, meal) => sum + (meal.defaultCount || 0) + (meal.alternativeCount || 0),
+              0
+            );
+          }
+
           setLiveStats(prev => ({
             ...prev,
-            studentsPresent: uniqueStudents.size,
-            mealsServed: todayAttendance.length,
+            selectedMeals,
+            mealsToCook: selectedMeals,
           }));
         } catch (error) {
-          console.log('Attendance data not available');
+          console.log('Meal selection data not available');
         }
 
         // Fetch billing stats
@@ -200,8 +208,8 @@ const Home = () => {
   ];
 
   const statsData = [
-    { label: 'Students Present', value: liveStats.studentsPresent.toString(), change: 'Today', icon: UserGroupIcon },
-    { label: 'Meals Served Today', value: liveStats.mealsServed.toString(), change: 'All meals', icon: CheckCircleIcon },
+    { label: 'Selected Meals', value: liveStats.selectedMeals.toString(), change: 'Today', icon: UserGroupIcon },
+    { label: 'Meals To Cook', value: liveStats.mealsToCook.toString(), change: 'All meals', icon: CheckCircleIcon },
     { label: 'Pending Payments', value: liveStats.pendingPayments.toString(), change: 'This month', icon: CurrencyDollarIcon },
   ];
 

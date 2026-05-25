@@ -27,7 +27,7 @@ public class InventoryController(AppDbContext db) : ApiControllerBase
             AddItemHints(names, schedule.DefaultItemsJson);
             AddItemHints(names, schedule.AlternativeItemsJson);
         }
-        var defaults = names.Select(name => new { itemName = name, quantity = "", unit = "kg", price = 0, total = 0 });
+        var defaults = names.OrderBy(name => name).Select(name => new { itemName = name, quantity = "", unit = "kg", price = 0, total = 0 });
         return OkResponse(new { defaults }, "Default bazar items retrieved successfully");
     }
 
@@ -54,6 +54,16 @@ public class InventoryController(AppDbContext db) : ApiControllerBase
     {
         var rows = await db.UtilityExpenses.Where(e => e.Month == month && e.Year == year).OrderByDescending(e => e.CreatedAt).ToListAsync();
         return OkResponse(new { utilities = rows.Select(e => e.Dto()), total = rows.Sum(e => e.Amount) }, "Utility expenses retrieved successfully");
+    }
+
+    [HttpGet("students")]
+    public async Task<IActionResult> Students()
+    {
+        var students = await db.Users
+            .Where(u => u.Role == "student" && u.IsActive)
+            .OrderBy(u => u.Name)
+            .ToListAsync();
+        return OkResponse(new { users = students.Select(u => u.Dto()) }, "Students retrieved successfully");
     }
 
     [HttpPost("utilities")]
@@ -194,9 +204,46 @@ public class InventoryController(AppDbContext db) : ApiControllerBase
         foreach (var item in doc.RootElement.EnumerateArray())
         {
             var name = item.TryGetProperty("name", out var nameValue) ? nameValue.GetString() : null;
-            if (!string.IsNullOrWhiteSpace(name)) names.Add(name);
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            var matched = false;
+            foreach (var hint in IngredientHints)
+            {
+                if (!name.Contains(hint.Key, StringComparison.OrdinalIgnoreCase)) continue;
+                foreach (var ingredient in hint.Value) names.Add(ingredient);
+                matched = true;
+            }
+            if (!matched) names.Add(name);
         }
     }
+
+    private static readonly Dictionary<string, string[]> IngredientHints = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["rice"] = ["Rice"],
+        ["polao"] = ["Polao rice", "Oil", "Onion", "Spices"],
+        ["biriyani"] = ["Rice", "Chicken", "Potato", "Oil", "Onion", "Spices"],
+        ["khichuri"] = ["Rice", "Dal", "Oil", "Onion", "Spices"],
+        ["chicken"] = ["Chicken", "Oil", "Onion", "Spices"],
+        ["beef"] = ["Beef", "Oil", "Onion", "Spices"],
+        ["mutton"] = ["Mutton", "Oil", "Onion", "Spices"],
+        ["fish"] = ["Fish", "Oil", "Onion", "Spices"],
+        ["egg"] = ["Egg", "Oil", "Onion"],
+        ["dal"] = ["Dal", "Oil", "Onion"],
+        ["lentil"] = ["Dal", "Oil", "Onion"],
+        ["vegetable"] = ["Mixed vegetables", "Oil", "Spices"],
+        ["salad"] = ["Cucumber", "Tomato", "Onion"],
+        ["paratha"] = ["Flour", "Oil"],
+        ["ruti"] = ["Flour"],
+        ["bread"] = ["Bread"],
+        ["tea"] = ["Tea powder", "Milk", "Sugar"],
+        ["milk"] = ["Milk"],
+        ["banana"] = ["Banana"],
+        ["noodles"] = ["Noodles", "Egg", "Oil"],
+        ["semai"] = ["Semai", "Milk", "Sugar"],
+        ["halwa"] = ["Suji", "Sugar", "Oil"],
+        ["borhani"] = ["Yogurt", "Spices"],
+        ["pancake"] = ["Flour", "Egg", "Milk", "Sugar"],
+        ["jam"] = ["Jam"],
+    };
 
     private static decimal SumBazarItems(string itemsJson)
     {

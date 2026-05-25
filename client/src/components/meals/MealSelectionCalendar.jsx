@@ -53,10 +53,12 @@ const MealSelectionCalendar = ({ year, month }) => {
       setSchedule(scheduleRes.data.schedule || []);
       const nextHolidayMode = holidayRes.data.holidayMode || { isEnabled: false };
       setHolidayMode(nextHolidayMode);
+      const savedStartDate = nextHolidayMode.startDate ? toISODate(nextHolidayMode.startDate) : '';
+      const savedEndDate = nextHolidayMode.endDate ? toISODate(nextHolidayMode.endDate) : '';
       setHolidayForm({
         isEnabled: !!nextHolidayMode.isEnabled,
-        startDate: nextHolidayMode.startDate ? toISODate(nextHolidayMode.startDate) : '',
-        endDate: nextHolidayMode.endDate ? toISODate(nextHolidayMode.endDate) : '',
+        startDate: savedStartDate && savedStartDate < tomorrowIso ? tomorrowIso : savedStartDate,
+        endDate: savedEndDate && savedEndDate < tomorrowIso ? '' : savedEndDate,
         reason: nextHolidayMode.reason || '',
       });
     } catch (error) {
@@ -97,6 +99,20 @@ const MealSelectionCalendar = ({ year, month }) => {
   };
 
   const handleHolidaySave = async () => {
+    if (holidayForm.isEnabled) {
+      if (!holidayForm.startDate || holidayForm.startDate < tomorrowIso) {
+        toast.error('Holiday mode must start from a future date');
+        return;
+      }
+      if (holidayForm.endDate && holidayForm.endDate < tomorrowIso) {
+        toast.error('Holiday end date must be a future date');
+        return;
+      }
+      if (holidayForm.endDate && holidayForm.endDate < holidayForm.startDate) {
+        toast.error('Holiday end date cannot be before start date');
+        return;
+      }
+    }
     try {
       await mealSelectionService.updateHolidayMode(holidayForm);
       toast.success(holidayForm.isEnabled ? 'Holiday mode saved' : 'Holiday mode disabled');
@@ -254,7 +270,7 @@ const MealSelectionCalendar = ({ year, month }) => {
                       </div>
                       {!canEdit && (
                         <div className="mb-3 text-sm text-rose-600 dark:text-rose-300">
-                          This meal can no longer be edited. Changes must be submitted before 12 AM of the previous day.
+                          This meal can no longer be edited. Changes must be submitted before midnight (11:59 PM) of the previous day.
                         </div>
                       )}
 

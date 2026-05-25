@@ -19,8 +19,6 @@ import ModernStudentDashboard from "../pages/student/ModernStudentDashboard";
 import MenuView from "../pages/student/MenuView";
 import MealConfirm from "../pages/student/MealConfirm";
 import MealSelection from "../pages/student/MealSelection";
-import AttendanceHistory from "../pages/student/AttendanceHistory";
-import SelfAttendance from "../pages/student/SelfAttendance";
 import ModernMyBill from "../pages/student/ModernMyBill";
 import Complaints from "../pages/student/Complaints";
 import Notices from "../pages/student/Notices";
@@ -31,9 +29,6 @@ import Profile from "../pages/student/Profile";
 // Manager Pages
 import ModernManagerDashboard from "../pages/manager/ModernManagerDashboard";
 import EnhancedMenuManage from "../pages/manager/EnhancedMenuManage";
-import AttendanceMark from "../pages/manager/AttendanceMark";
-import AttendanceReport from "../pages/manager/AttendanceReport";
-import AttendanceApproval from "../pages/manager/AttendanceApproval";
 import FeedbackSummary from "../pages/manager/FeedbackSummary";
 import Inventory from "../pages/manager/Inventory";
 import ManagerChat from "../pages/manager/Chat";
@@ -118,23 +113,11 @@ const AppRoutes = () => {
       />
       <Route
         path="/student/attendance"
-        element={
-          <ProtectedRoute>
-            <RoleRoute allowedRoles={["student"]}>
-              <SelfAttendance />
-            </RoleRoute>
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/student/meal-selection" replace />}
       />
       <Route
         path="/student/attendance-history"
-        element={
-          <ProtectedRoute>
-            <RoleRoute allowedRoles={["student"]}>
-              <AttendanceHistory />
-            </RoleRoute>
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/student/meal-selection" replace />}
       />
       <Route
         path="/student/bill"
@@ -220,33 +203,15 @@ const AppRoutes = () => {
       />
       <Route
         path="/manager/attendance"
-        element={
-          <ProtectedRoute>
-            <RoleRoute allowedRoles={["manager"]}>
-              <AttendanceApproval />
-            </RoleRoute>
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/manager/menu" replace />}
       />
       <Route
         path="/manager/attendance-mark"
-        element={
-          <ProtectedRoute>
-            <RoleRoute allowedRoles={["manager"]}>
-              <AttendanceMark />
-            </RoleRoute>
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/manager/menu" replace />}
       />
       <Route
         path="/manager/attendance-report"
-        element={
-          <ProtectedRoute>
-            <RoleRoute allowedRoles={["manager"]}>
-              <AttendanceReport />
-            </RoleRoute>
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/manager/menu" replace />}
       />
       <Route
         path="/manager/inventory"

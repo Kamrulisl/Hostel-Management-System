@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react';
 import ModernLayout from '../../components/layout/ModernLayout';
 import { inventoryService } from '../../services/inventory.service';
-import { usersService } from '../../services/users.service';
 import { toISODate } from '../../utils/formatDate';
 import toast from 'react-hot-toast';
 
 const emptyItem = { itemName: '', quantity: '', unit: 'kg', price: '', total: '' };
+const utilityTypes = [
+  { value: 'gas', label: 'Gas' },
+  { value: 'electricity', label: 'Electricity' },
+  { value: 'water', label: 'Water' },
+  { value: 'manager_salary', label: 'Manager Salary' },
+  { value: 'assistant_manager_salary', label: 'Assistant Manager Salary' },
+  { value: 'other', label: 'Other' },
+];
 
 const Inventory = () => {
   const today = toISODate(new Date());
@@ -15,8 +22,9 @@ const Inventory = () => {
   const [bazars, setBazars] = useState([]);
   const [utilities, setUtilities] = useState([]);
   const [students, setStudents] = useState([]);
-  const [utility, setUtility] = useState({ type: 'gas', amount: '', notes: '' });
-  const [advance, setAdvance] = useState({ studentId: '', amount: '', notes: '' });
+  const [utility, setUtility] = useState({ type: 'gas', customType: '', amount: '', notes: '' });
+  const [advance, setAdvance] = useState({ studentId: '', date: today, amount: '', notes: '' });
+  const [studentSearch, setStudentSearch] = useState('');
 
   useEffect(() => {
     load();
@@ -29,13 +37,13 @@ const Inventory = () => {
       inventoryService.getBazarDefaults(date),
       inventoryService.getBazar({ date }),
       inventoryService.getUtilities(month, year),
-      usersService.getAllUsers(),
+      inventoryService.getStudents(),
     ]);
     const defaults = defaultsRes.data.defaults || [];
     setItems(defaults.length ? defaults : [emptyItem]);
     setBazars(bazarRes.data.bazars || []);
     setUtilities(utilityRes.data.utilities || []);
-    setStudents((userRes.data.users || []).filter((user) => user.role === 'student'));
+    setStudents(userRes.data.users || []);
   };
 
   const updateItem = (index, field, value) => {
@@ -63,9 +71,14 @@ const Inventory = () => {
   const saveUtility = async () => {
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
-    await inventoryService.createUtility({ month, year, ...utility, amount: Number(utility.amount) || 0 });
+    const type = utility.type === 'other' ? utility.customType.trim() : utility.type;
+    if (!type || !utility.amount) {
+      toast.error('Select utility type and amount');
+      return;
+    }
+    await inventoryService.createUtility({ month, year, type, notes: utility.notes, amount: Number(utility.amount) || 0 });
     toast.success('Utility expense added');
-    setUtility({ type: 'gas', amount: '', notes: '' });
+    setUtility({ type: 'gas', customType: '', amount: '', notes: '' });
     load();
   };
 
@@ -74,13 +87,23 @@ const Inventory = () => {
       toast.error('Select student and amount');
       return;
     }
-    await inventoryService.createAdvance({ date, ...advance, amount: Number(advance.amount) || 0 });
+    await inventoryService.createAdvance({ ...advance, amount: Number(advance.amount) || 0 });
     toast.success('Advance payment saved');
-    setAdvance({ studentId: '', amount: '', notes: '' });
+    setAdvance({ studentId: '', date: today, amount: '', notes: '' });
   };
 
   const totalToday = bazars.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0);
   const utilityTotal = utilities.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const filteredStudents = students.filter((student) => {
+    const term = studentSearch.trim().toLowerCase();
+    if (!term) return true;
+    return (
+      student.name?.toLowerCase().includes(term) ||
+      student.rollNumber?.toLowerCase().includes(term) ||
+      student.roomNumber?.toLowerCase().includes(term)
+    );
+  });
+  const selectedStudent = students.find((student) => student._id === advance.studentId);
 
   return (
     <ModernLayout>
@@ -130,32 +153,51 @@ const Inventory = () => {
 
           <div className="card p-6">
             <h2 className="text-xl font-bold gradient-text mb-4">Utility / Salary</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
               <select value={utility.type} onChange={(e) => setUtility({ ...utility, type: e.target.value })} className="px-3 py-2 rounded-lg border">
-                <option value="gas">Gas</option>
-                <option value="electricity">Electricity</option>
-                <option value="water">Water</option>
-                <option value="manager_salary">Manager Salary</option>
-                <option value="assistant_manager_salary">Assistant Manager Salary</option>
+                {utilityTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
               </select>
+              {utility.type === 'other' && (
+                <input value={utility.customType} onChange={(e) => setUtility({ ...utility, customType: e.target.value })} placeholder="Custom bill name" className="px-3 py-2 rounded-lg border" />
+              )}
               <input value={utility.amount} onChange={(e) => setUtility({ ...utility, amount: e.target.value })} placeholder="Amount" className="px-3 py-2 rounded-lg border" />
+              <input value={utility.notes} onChange={(e) => setUtility({ ...utility, notes: e.target.value })} placeholder="Note" className="px-3 py-2 rounded-lg border" />
               <button onClick={saveUtility} className="px-4 py-2 rounded-lg bg-violet-600 text-white font-semibold">Add</button>
             </div>
             <p className="font-semibold">This month total: Tk {utilityTotal}</p>
+            <div className="mt-3 space-y-2">
+              {utilities.slice(0, 5).map((row) => (
+                <div key={row._id} className="flex justify-between gap-3 text-sm p-2 rounded-lg bg-secondary-50 dark:bg-secondary-800">
+                  <span className="capitalize">{String(row.type || '').replaceAll('_', ' ')}</span>
+                  <span className="font-semibold">Tk {row.amount}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="card p-6">
           <h2 className="text-xl font-bold gradient-text mb-4">Student Advance Payment</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <input value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} placeholder="Search name / roll / room" className="px-3 py-2 rounded-lg border" />
             <select value={advance.studentId} onChange={(e) => setAdvance({ ...advance, studentId: e.target.value })} className="px-3 py-2 rounded-lg border">
               <option value="">Select student</option>
-              {students.map((student) => <option key={student._id} value={student._id}>{student.name}</option>)}
+              {filteredStudents.map((student) => (
+                <option key={student._id} value={student._id}>
+                  {student.name} - {student.rollNumber || 'No Roll'} - Room {student.roomNumber || 'N/A'}
+                </option>
+              ))}
             </select>
+            <input type="date" value={advance.date} onChange={(e) => setAdvance({ ...advance, date: e.target.value })} className="px-3 py-2 rounded-lg border" />
             <input value={advance.amount} onChange={(e) => setAdvance({ ...advance, amount: e.target.value })} placeholder="Amount" className="px-3 py-2 rounded-lg border" />
             <input value={advance.notes} onChange={(e) => setAdvance({ ...advance, notes: e.target.value })} placeholder="Note" className="px-3 py-2 rounded-lg border" />
             <button onClick={saveAdvance} className="px-4 py-2 rounded-lg bg-violet-600 text-white font-semibold">Save Advance</button>
           </div>
+          {selectedStudent && (
+            <p className="mt-3 text-sm text-secondary-600 dark:text-secondary-300">
+              Selected: <span className="font-semibold">{selectedStudent.name}</span> | Roll: <span className="font-semibold">{selectedStudent.rollNumber || 'N/A'}</span> | Room: <span className="font-semibold">{selectedStudent.roomNumber || 'N/A'}</span>
+            </p>
+          )}
         </div>
       </div>
     </ModernLayout>

@@ -23,6 +23,17 @@ public class BillingController(AppDbContext db, AuditService audit) : ApiControl
         return OkResponse(new { bills = bills.Select(b => b.Dto()), count = bills.Count }, "Your bills retrieved successfully");
     }
 
+    [Authorize(Roles = "student")]
+    [HttpGet("advances/me")]
+    public async Task<IActionResult> MyAdvances(int? month, int? year)
+    {
+        var query = db.AdvancePayments.Where(p => p.StudentId == User.Id());
+        if (month is not null) query = query.Where(p => p.Date.Month == month);
+        if (year is not null) query = query.Where(p => p.Date.Year == year);
+        var advances = await query.OrderByDescending(p => p.Date).ThenByDescending(p => p.CreatedAt).ToListAsync();
+        return OkResponse(new { advances = advances.Select(a => a.Dto()), total = advances.Sum(a => a.Amount) }, "Advance payments retrieved successfully");
+    }
+
     [HttpGet("student/{studentId}")]
     public async Task<IActionResult> StudentBills(string studentId)
     {
@@ -71,16 +82,18 @@ public class BillingController(AppDbContext db, AuditService audit) : ApiControl
         foreach (var bill in bills)
         {
             var totalMeals = bill.BreakfastCount + bill.LunchCount + bill.DinnerCount;
-            var mealCost = bill.BreakfastCount * bill.BreakfastRate
-                + bill.LunchCount * bill.LunchRate
-                + bill.DinnerCount * bill.DinnerRate;
-            var totalAmount = bill.FixedCost + mealCost;
+            var mealCost = totalMeals * bill.MealRate;
+            var totalAmount = bill.PreviousDue + bill.FixedCost + bill.UtilityCost + mealCost - bill.AdvancePaid;
+            if (totalAmount < 0) totalAmount = 0;
 
             if (bill.TotalMeals != totalMeals || bill.MealCost != mealCost || bill.TotalAmount != totalAmount)
             {
                 bill.TotalMeals = totalMeals;
                 bill.MealCost = mealCost;
                 bill.TotalAmount = totalAmount;
+                bill.BreakfastRate = bill.MealRate;
+                bill.LunchRate = bill.MealRate;
+                bill.DinnerRate = bill.MealRate;
                 bill.UpdatedAt = DateTime.UtcNow;
                 fixedCount++;
             }
@@ -172,9 +185,13 @@ public class BillingController(AppDbContext db, AuditService audit) : ApiControl
         var selections = await db.MealSelections.Where(m => m.StudentId == studentId && m.Date.Year == year && m.Date.Month == month).ToListAsync();
         var holiday = await db.StudentHolidayModes.FirstOrDefaultAsync(h => h.StudentId == studentId);
         var daysInMonth = DateTime.DaysInMonth(year, month);
-        var breakfast = CountBillableMeals(selections, holiday, year, month, daysInMonth, "breakfast");
-        var lunch = CountBillableMeals(selections, holiday, year, month, daysInMonth, "lunch");
-        var dinner = CountBillableMeals(selections, holiday, year, month, daysInMonth, "dinner");
+        var today = DateTime.Now.Date;
+        var monthEndForBilling = new DateTime(year, month, daysInMonth);
+        if (monthEndForBilling > today) monthEndForBilling = today;
+        var billableDays = monthEndForBilling.Year == year && monthEndForBilling.Month == month ? monthEndForBilling.Day : 0;
+        var breakfast = CountBillableMeals(selections, holiday, year, month, billableDays, "breakfast");
+        var lunch = CountBillableMeals(selections, holiday, year, month, billableDays, "lunch");
+        var dinner = CountBillableMeals(selections, holiday, year, month, billableDays, "dinner");
         var totalMeals = breakfast + lunch + dinner;
         var monthStart = new DateTime(year, month, 1);
         var monthEnd = monthStart.AddMonths(1).AddDays(-1);
@@ -185,9 +202,9 @@ public class BillingController(AppDbContext db, AuditService audit) : ApiControl
         {
             var rows = await db.MealSelections.Where(m => m.StudentId == id && m.Date.Year == year && m.Date.Month == month).ToListAsync();
             var h = await db.StudentHolidayModes.FirstOrDefaultAsync(x => x.StudentId == id);
-            allMeals += CountBillableMeals(rows, h, year, month, daysInMonth, "breakfast");
-            allMeals += CountBillableMeals(rows, h, year, month, daysInMonth, "lunch");
-            allMeals += CountBillableMeals(rows, h, year, month, daysInMonth, "dinner");
+            allMeals += CountBillableMeals(rows, h, year, month, billableDays, "breakfast");
+            allMeals += CountBillableMeals(rows, h, year, month, billableDays, "lunch");
+            allMeals += CountBillableMeals(rows, h, year, month, billableDays, "dinner");
         }
         var mealRate = allMeals > 0 ? Math.Round(bazarTotal / allMeals, 2) : 0;
         var mealCost = totalMeals * mealRate;
@@ -211,11 +228,11 @@ public class BillingController(AppDbContext db, AuditService audit) : ApiControl
         }
 
         bill.BreakfastCount = breakfast;
-        bill.BreakfastRate = settings.BreakfastPrice;
+        bill.BreakfastRate = mealRate;
         bill.LunchCount = lunch;
-        bill.LunchRate = settings.LunchPrice;
+        bill.LunchRate = mealRate;
         bill.DinnerCount = dinner;
-        bill.DinnerRate = settings.DinnerPrice;
+        bill.DinnerRate = mealRate;
         bill.TotalMeals = totalMeals;
         bill.MealCost = mealCost;
         bill.FixedCost = fixedCost;

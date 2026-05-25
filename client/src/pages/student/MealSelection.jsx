@@ -101,7 +101,7 @@ const MealSelection = () => {
             </li>
             <li className="flex items-start gap-3">
               <span className="text-2xl">⏰</span>
-              <span>Alternative and cancel requests must be submitted before 12 AM of the previous day</span>
+              <span>Alternative and cancel requests must be submitted before midnight (11:59 PM) of the previous day</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-2xl">💰</span>

@@ -13,8 +13,7 @@ export const auditService = {
     if (filters.page) params.append("page", filters.page);
     if (filters.limit) params.append("limit", filters.limit);
 
-    const response = await api.get(`/audit?${params.toString()}`);
-    return response.data;
+    return api.get(`/audit?${params.toString()}`);
   },
 
   // Export audit logs
@@ -29,6 +28,6 @@ export const auditService = {
     const response = await api.get(`/audit/export?${params.toString()}`, {
       responseType: "blob",
     });
-    return response.data;
+    return response;
   },
 };

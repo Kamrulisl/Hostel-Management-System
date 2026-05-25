@@ -23,7 +23,7 @@ const ModernAdminDashboard = () => {
     monthlyRevenue: 0,
     activeComplaints: 0,
     resolvedComplaints: 0,
-    attendanceRate: 0,
+    mealSelectionRate: 0,
     satisfactionRate: 87,
   });
   const [recentUsers, setRecentUsers] = useState([]);
@@ -71,7 +71,7 @@ const ModernAdminDashboard = () => {
       // Fetch complaints
       try {
         const complaintsRes = await complaintsService.getAllComplaints();
-        const complaints = complaintsRes.data || [];
+        const complaints = complaintsRes.data.complaints || [];
         const active = complaints.filter(c => c.status === 'pending' || c.status === 'in-progress').length;
         const resolved = complaints.filter(c => c.status === 'resolved').length;
         setStats(prev => ({ 
@@ -124,8 +124,8 @@ const ModernAdminDashboard = () => {
       trendUp: true,
     },
     {
-      title: "Attendance",
-      value: `${stats.attendanceRate}%`,
+      title: "Meal Selection",
+      value: `${stats.mealSelectionRate}%`,
       icon: ChartBarIcon,
       color: "from-violet-500 to-purple-600",
       trend: "",

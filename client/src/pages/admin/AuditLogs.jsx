@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import ModernLayout from "../../components/layout/ModernLayout";
 import { auditService } from "../../services/audit.service";
 import { Shield, Filter, Download, Search } from "lucide-react";
+import { formatDateTime } from "../../utils/formatDate";
 
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -195,7 +196,7 @@ const AuditLogs = () => {
                         Description
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                        IP Address
+                        Actor Role
                       </th>
                     </tr>
                   </thead>
@@ -209,10 +210,10 @@ const AuditLogs = () => {
                         className="hover:bg-violet-50/50 transition-all"
                       >
                         <td className="px-6 py-4 text-sm text-gray-900">
-                          {new Date(log.timestamp).toLocaleString()}
+                          {formatDateTime(log.createdAt)}
                         </td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                          {log.userId?.name || "System"}
+                          {log.actorId || "System"}
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getActionBadge(log.action)}`}>
@@ -223,10 +224,10 @@ const AuditLogs = () => {
                           {log.entityType}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {log.description || JSON.stringify(log.details).substring(0, 50)}
+                          {log.description || "-"}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
-                          {log.ipAddress || "N/A"}
+                          {log.actorRole || "N/A"}
                         </td>
                       </motion.tr>
                     ))}

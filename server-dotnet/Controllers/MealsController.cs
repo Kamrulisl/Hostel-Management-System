@@ -14,7 +14,7 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
     public async Task<IActionResult> Select(JsonElement body)
     {
         var date = body.Date("date")?.Date ?? DateTime.UtcNow.Date;
-        if (!CanChangeMeal(date)) return ErrorResponse(400, "Meal change must be submitted before 12 AM of the previous day");
+        if (!CanChangeMeal(date)) return ErrorResponse(400, "Meal change must be submitted before midnight (11:59 PM) of the previous day");
 
         var mealType = body.String("mealType");
         if (string.IsNullOrWhiteSpace(mealType) && body.TryGetProperty("meals", out var meals))
@@ -39,7 +39,7 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
     {
         var start = body.Date("startDate")?.Date ?? DateTime.UtcNow.Date.AddDays(1);
         var end = body.Date("endDate")?.Date ?? start;
-        if (!CanChangeMeal(start)) return ErrorResponse(400, "Meal change must be submitted before 12 AM of the previous day");
+        if (!CanChangeMeal(start)) return ErrorResponse(400, "Meal change must be submitted before midnight (11:59 PM) of the previous day");
 
         var updated = new List<object>();
         for (var day = start; day <= end; day = day.AddDays(1))
@@ -118,10 +118,12 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
         {
             var tomorrow = DateTime.Now.Date.AddDays(1);
             if (holiday.StartDate is null) holiday.StartDate = tomorrow;
-            if (holiday.StartDate.Value.Date < tomorrow && !(holiday.EndDate is not null && holiday.EndDate.Value.Date >= tomorrow))
-                return ErrorResponse(400, "Holiday mode can be started from tomorrow or edited for remaining future days only");
+            if (holiday.StartDate.Value.Date < tomorrow)
+                return ErrorResponse(400, "Holiday mode must start from a future date");
             if (holiday.EndDate is not null && holiday.EndDate.Value.Date < tomorrow)
-                return ErrorResponse(400, "Holiday end date must include a future day");
+                return ErrorResponse(400, "Holiday end date must be a future date");
+            if (holiday.EndDate is not null && holiday.EndDate.Value.Date < holiday.StartDate.Value.Date)
+                return ErrorResponse(400, "Holiday end date cannot be before start date");
         }
         holiday.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();

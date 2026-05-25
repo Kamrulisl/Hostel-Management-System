@@ -30,6 +30,7 @@ import { billingService } from "../../services/billing.service";
 import ModernLoader from "../../components/common/ModernLoader";
 import EmptyState from "../../components/common/EmptyState";
 import toast from "react-hot-toast";
+import { formatDate } from "../../utils/formatDate";
 
 const BillingManage = () => {
   const navigate = useNavigate();
@@ -56,6 +57,20 @@ const BillingManage = () => {
       console.error("Error fetching bills:", error);
       toast.error("Failed to fetch bills");
       setBills([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateBills = async () => {
+    try {
+      setLoading(true);
+      await billingService.resetAndGenerateBills(month, year);
+      toast.success("Bills generated successfully");
+      await fetchBills();
+    } catch (error) {
+      console.error("Error generating bills:", error);
+      toast.error(error.message || "Failed to generate bills");
     } finally {
       setLoading(false);
     }
@@ -104,9 +119,39 @@ const BillingManage = () => {
       ),
     },
     {
-      field: "fixedCost",
-      headerName: "Fixed Cost",
+      field: "mealRate",
+      headerName: "Meal Rate",
       width: 130,
+      renderCell: (params) => (
+        <Typography variant="body2" fontWeight={600}>
+          ৳{params.value || 0}
+        </Typography>
+      ),
+    },
+    {
+      field: "utilityCost",
+      headerName: "Utility",
+      width: 120,
+      renderCell: (params) => (
+        <Typography variant="body2" fontWeight={600}>
+          ৳{params.value || 0}
+        </Typography>
+      ),
+    },
+    {
+      field: "advancePaid",
+      headerName: "Advance",
+      width: 120,
+      renderCell: (params) => (
+        <Typography variant="body2" fontWeight={600}>
+          ৳{params.value || 0}
+        </Typography>
+      ),
+    },
+    {
+      field: "previousDue",
+      headerName: "Prev Due",
+      width: 120,
       renderCell: (params) => (
         <Typography variant="body2" fontWeight={600}>
           ৳{params.value || 0}
@@ -140,7 +185,7 @@ const BillingManage = () => {
       headerName: "Paid Date",
       width: 150,
       renderCell: (params) =>
-        params.value ? new Date(params.value).toLocaleDateString() : "-",
+        params.value ? formatDate(params.value) : "-",
     },
     {
       field: "actions",
@@ -208,6 +253,18 @@ const BillingManage = () => {
                     startIcon={<Refresh />}
                   >
                     {loading ? "Loading..." : "Refresh"}
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleGenerateBills}
+                    disabled={loading}
+                    sx={{
+                      bgcolor: "white",
+                      color: "primary.main",
+                      "&:hover": { bgcolor: "grey.100" },
+                    }}
+                  >
+                    Generate Bills
                   </Button>
                 </Box>
               </Box>

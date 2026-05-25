@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Grid,
@@ -10,49 +10,86 @@ import {
   ListItem,
   ListItemText,
   Chip,
-  Alert,
-  AlertTitle,
 } from "@mui/material";
-import {
-  Restaurant,
-  People,
-  Inventory,
-  TrendingUp,
-  Warning,
-  CheckCircle,
-} from "@mui/icons-material";
+import { People, ShoppingCart, TrendingUp, CheckCircle } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import ModernLayout from "../../components/layout/ModernLayout";
 import StatsCard from "../../components/common/StatsCard";
 import ModernLineChart from "../../components/charts/ModernLineChart";
 import ModernBarChart from "../../components/charts/ModernBarChart";
+import { mealSelectionService } from "../../services/mealSelection.service";
+import { inventoryService } from "../../services/inventory.service";
+import { toISODate } from "../../utils/formatDate";
 
 const ModernManagerDashboard = () => {
   const { user } = useAuth();
-
-  const stats = {
-    totalStudents: 250,
-    todayAttendance: 235,
-    lowStockItems: 5,
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    todayMeals: 0,
+    bazarEntries: 0,
     avgRating: 4.2,
-  };
-
-  // Attendance trend data (last 7 days)
-  const attendanceData = [220, 225, 218, 230, 228, 235, 235];
-  const attendanceLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-  // Meal consumption data
-  const mealData = [180, 220, 200];
+  });
+  const [mealData, setMealData] = useState([0, 0, 0]);
+  const [bazarItems, setBazarItems] = useState([]);
+  const [mealSelectionData, setMealSelectionData] = useState([0, 0, 0, 0, 0, 0, 0]);
+  const mealSelectionLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const mealLabels = ["Breakfast", "Lunch", "Dinner"];
 
-  const lowStockItems = [
-    { name: "Rice", quantity: "5 kg", status: "critical" },
-    { name: "Dal", quantity: "8 kg", status: "low" },
-    { name: "Oil", quantity: "3 L", status: "critical" },
-    { name: "Sugar", quantity: "10 kg", status: "low" },
-    { name: "Tea Powder", quantity: "2 kg", status: "critical" },
-  ];
+  useEffect(() => {
+    fetchDashboard();
+  }, []);
+
+  const fetchDashboard = async () => {
+    const today = toISODate(new Date());
+    try {
+      const lastSevenDates = Array.from({ length: 7 }, (_, index) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (6 - index));
+        return toISODate(date);
+      });
+      const [usersRes, countsRes, bazarRes, defaultsRes, trendResponses] = await Promise.all([
+        inventoryService.getStudents(),
+        mealSelectionService.getCookingCounts(today),
+        inventoryService.getBazar({ date: today }),
+        inventoryService.getBazarDefaults(today),
+        Promise.all(lastSevenDates.map((date) => mealSelectionService.getCookingCounts(date))),
+      ]);
+      const students = (usersRes.data.users || []).filter((item) => item.role === "student" && item.isActive !== false);
+      const counts = countsRes.data.counts || {};
+      const nextMealData = ["breakfast", "lunch", "dinner"].map(
+        (mealType) => counts[mealType]?.totalToCook || 0,
+      );
+      const todayMeals = nextMealData.reduce((sum, count) => sum + count, 0);
+      const bazars = bazarRes.data.bazars || [];
+      const defaults = defaultsRes.data.defaults || [];
+      setStats((current) => ({
+        ...current,
+        totalStudents: students.length,
+        todayMeals,
+        bazarEntries: bazars.length,
+      }));
+      setMealData(nextMealData);
+      setMealSelectionData(
+        trendResponses.map((response) => {
+          const dayCounts = response.data.counts || {};
+          return Object.values(dayCounts).reduce(
+            (sum, meal) => sum + (meal.totalToCook || 0),
+            0,
+          );
+        }),
+      );
+      setBazarItems(
+        defaults.slice(0, 5).map((item) => ({
+          name: item.itemName,
+          quantity: item.quantity ? `${item.quantity} ${item.unit || ""}` : item.unit || "",
+          status: bazars.length ? "added" : "planned",
+        })),
+      );
+    } catch (error) {
+      console.error("Error loading manager dashboard", error);
+    }
+  };
 
   const recentFeedback = [
     {
@@ -104,8 +141,8 @@ const ModernManagerDashboard = () => {
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatsCard
-              title="Today's Attendance"
-              value={stats.todayAttendance}
+              title="Today's Meals"
+              value={stats.todayMeals}
               icon={CheckCircle}
               color="success"
               trend="up"
@@ -114,9 +151,9 @@ const ModernManagerDashboard = () => {
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatsCard
-              title="Low Stock Items"
-              value={stats.lowStockItems}
-              icon={Warning}
+              title="Bazar Entries"
+              value={stats.bazarEntries}
+              icon={ShoppingCart}
               color="error"
             />
           </Grid>
@@ -133,7 +170,7 @@ const ModernManagerDashboard = () => {
         </Grid>
 
         <Grid container spacing={3}>
-          {/* Attendance Trend Chart */}
+          {/* Meal Selection Trend Chart */}
           <Grid item xs={12} md={8}>
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -141,10 +178,10 @@ const ModernManagerDashboard = () => {
               transition={{ duration: 0.5, delay: 0.2 }}
             >
               <ModernLineChart
-                title="Attendance Trend (Last 7 Days)"
-                data={attendanceData}
-                labels={attendanceLabels}
-                label="Students Present"
+                title="Meal Selection Trend (Last 7 Days)"
+                data={mealSelectionData}
+                labels={mealSelectionLabels}
+                label="Selected Meals"
               />
             </motion.div>
 
@@ -167,7 +204,7 @@ const ModernManagerDashboard = () => {
 
           {/* Right Column */}
           <Grid item xs={12} md={4}>
-            {/* Low Stock Alert */}
+            {/* Daily Bazar */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -184,25 +221,29 @@ const ModernManagerDashboard = () => {
                     }}
                   >
                     <Typography variant="h6" fontWeight={600}>
-                      Low Stock Alert
+                      Daily Bazar
                     </Typography>
                     <Chip
-                      label={stats.lowStockItems}
-                      color="error"
+                      label={stats.bazarEntries}
+                      color="primary"
                       size="small"
                       sx={{ fontWeight: 600 }}
                     />
                   </Box>
                   <List>
-                    {lowStockItems.map((item, index) => (
+                    {bazarItems.length === 0 ? (
+                      <ListItem>
+                        <ListItemText primary="No bazar defaults found" secondary="Set weekly meal schedule first" />
+                      </ListItem>
+                    ) : bazarItems.map((item, index) => (
                       <ListItem
                         key={index}
                         sx={{
                           borderRadius: 2,
                           mb: 1,
                           backgroundColor:
-                            item.status === "critical"
-                              ? "rgba(239, 68, 68, 0.1)"
+                            item.status === "added"
+                              ? "rgba(16, 185, 129, 0.1)"
                               : "rgba(245, 158, 11, 0.1)",
                         }}
                       >
@@ -214,14 +255,14 @@ const ModernManagerDashboard = () => {
                           label={item.status}
                           size="small"
                           color={
-                            item.status === "critical" ? "error" : "warning"
+                            item.status === "added" ? "success" : "warning"
                           }
                         />
                       </ListItem>
                     ))}
                   </List>
                   <Button fullWidth variant="contained" sx={{ mt: 2 }}>
-                    Manage Inventory
+                    Manage Daily Bazar
                   </Button>
                 </CardContent>
               </Card>

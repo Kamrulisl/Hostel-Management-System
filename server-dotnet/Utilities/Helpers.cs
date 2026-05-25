@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Globalization;
 using System.Text.Json;
 
 public static class Json
@@ -26,12 +27,19 @@ public static class JsonExtensions
     public static decimal? Decimal(this JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.TryGetDecimal(out var result) ? result : null;
 
-    public static DateTime? Date(this JsonElement element, string name) =>
-        element.TryGetProperty(name, out var value)
-        && value.ValueKind == JsonValueKind.String
-        && DateTime.TryParse(value.GetString(), out var result)
+    public static DateTime? Date(this JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String)
+            return null;
+
+        var text = value.GetString();
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        if (DateTime.TryParseExact(text, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateOnly))
+            return dateOnly;
+        return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var result)
             ? result
             : null;
+    }
 }
 
 public static class ClaimsExtensions
