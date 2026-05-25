@@ -1,0 +1,238 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+[Authorize]
+[Route("api/v1/billing")]
+public class BillingController(AppDbContext db, AuditService audit) : ApiControllerBase
+{
+    [Authorize(Roles = "admin")]
+    [HttpGet]
+    public async Task<IActionResult> All(string? status, int? year, int? month)
+    {
+        var query = Query(status, year, month);
+        var bills = await query.ToListAsync();
+        return OkResponse(new { bills = bills.Select(b => b.Dto()), count = bills.Count }, "All bills retrieved successfully");
+    }
+
+    [HttpGet("me")]
+    public async Task<IActionResult> Mine()
+    {
+        var bills = await db.Bills.Include(b => b.Student).Where(b => b.StudentId == User.Id()).OrderByDescending(b => b.Year).ThenByDescending(b => b.Month).ToListAsync();
+        return OkResponse(new { bills = bills.Select(b => b.Dto()), count = bills.Count }, "Your bills retrieved successfully");
+    }
+
+    [HttpGet("student/{studentId}")]
+    public async Task<IActionResult> StudentBills(string studentId)
+    {
+        var bills = await db.Bills.Include(b => b.Student).Where(b => b.StudentId == studentId).OrderByDescending(b => b.Year).ThenByDescending(b => b.Month).ToListAsync();
+        return OkResponse(new { bills = bills.Select(b => b.Dto()), count = bills.Count }, "Student bills retrieved successfully");
+    }
+
+    [HttpGet("summary/{studentId}")]
+    public async Task<IActionResult> Summary(string studentId, int year, int month)
+    {
+        var bill = await db.Bills.FirstOrDefaultAsync(b => b.StudentId == studentId && b.Year == year && b.Month == month);
+        return OkResponse(new { summary = bill?.Dto() }, "Bill summary retrieved successfully");
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpPost("generate")]
+    [HttpPost("seed")]
+    [HttpPost("regenerate")]
+    public async Task<IActionResult> Generate(JsonElement body) => await GenerateBills(body);
+
+    [Authorize(Roles = "admin")]
+    [HttpPost("reset-and-generate")]
+    public async Task<IActionResult> ResetAndGenerate(JsonElement body)
+    {
+        db.Bills.RemoveRange(db.Bills.Where(b => b.Year == body.Int("year") && b.Month == body.Int("month")));
+        await db.SaveChangesAsync();
+        return await GenerateBills(body);
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpPost("delete-all-and-generate")]
+    public async Task<IActionResult> DeleteAllAndGenerate(JsonElement body)
+    {
+        db.Bills.RemoveRange(db.Bills);
+        await db.SaveChangesAsync();
+        return await GenerateBills(body);
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpPost("fix-all")]
+    public async Task<IActionResult> FixAll()
+    {
+        var bills = await db.Bills.ToListAsync();
+        var fixedCount = 0;
+
+        foreach (var bill in bills)
+        {
+            var totalMeals = bill.BreakfastCount + bill.LunchCount + bill.DinnerCount;
+            var mealCost = bill.BreakfastCount * bill.BreakfastRate
+                + bill.LunchCount * bill.LunchRate
+                + bill.DinnerCount * bill.DinnerRate;
+            var totalAmount = bill.FixedCost + mealCost;
+
+            if (bill.TotalMeals != totalMeals || bill.MealCost != mealCost || bill.TotalAmount != totalAmount)
+            {
+                bill.TotalMeals = totalMeals;
+                bill.MealCost = mealCost;
+                bill.TotalAmount = totalAmount;
+                bill.UpdatedAt = DateTime.UtcNow;
+                fixedCount++;
+            }
+        }
+
+        await db.SaveChangesAsync();
+        return OkResponse(new { fixedCount, message = $"Fixed {fixedCount} bills" }, $"Fixed {fixedCount} bills successfully");
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpPost("generate-single")]
+    public async Task<IActionResult> GenerateSingle(JsonElement body)
+    {
+        var bill = await BuildBill(body.String("studentId")!, body.Int("year") ?? DateTime.UtcNow.Year, body.Int("month") ?? DateTime.UtcNow.Month);
+        await db.SaveChangesAsync();
+        return OkResponse(new { bill = bill.Dto() }, "Bill generated successfully");
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpGet("check/missing-data")]
+    public async Task<IActionResult> MissingData()
+    {
+        var bills = await db.Bills
+            .Include(b => b.Student)
+            .Where(b => b.TotalAmount <= 0 || b.TotalMeals != b.BreakfastCount + b.LunchCount + b.DinnerCount || b.Student == null)
+            .ToListAsync();
+
+        return OkResponse(new { bills = bills.Select(b => b.Dto()), count = bills.Count }, $"Found {bills.Count} bills with missing data");
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpGet("stats/{year:int}/{month:int}")]
+    public async Task<IActionResult> Stats(int year, int month)
+    {
+        var bills = await db.Bills.Where(b => b.Year == year && b.Month == month).ToListAsync();
+        return OkResponse(new { stats = new { totalBills = bills.Count, paidBills = bills.Count(b => b.Status == "PAID"), dueBills = bills.Count(b => b.Status == "DUE"), totalRevenue = bills.Where(b => b.Status == "PAID").Sum(b => b.TotalAmount), totalDue = bills.Where(b => b.Status == "DUE").Sum(b => b.TotalAmount) } }, "Billing statistics retrieved successfully");
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpPut("{billId}")]
+    public async Task<IActionResult> Update(string billId, JsonElement body)
+    {
+        var bill = await db.Bills.Include(b => b.Student).FirstOrDefaultAsync(b => b.Id == billId);
+        if (bill is null) return ErrorResponse(404, "Bill not found");
+        bill.Status = body.String("status") ?? bill.Status;
+        bill.PaymentMethod = body.String("paymentMethod");
+        bill.TransactionId = body.String("transactionId");
+        if (bill.Status == "PAID") bill.PaidAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return OkResponse(new { bill = bill.Dto() }, "Bill status updated successfully");
+    }
+
+    [HttpGet("{billId}")]
+    public async Task<IActionResult> Details(string billId)
+    {
+        var bill = await db.Bills.Include(b => b.Student).FirstOrDefaultAsync(b => b.Id == billId);
+        return bill is null ? ErrorResponse(404, "Bill not found") : OkResponse(new { bill = bill.Dto() }, "Bill details retrieved successfully");
+    }
+
+    private IQueryable<Bill> Query(string? status, int? year, int? month)
+    {
+        var query = db.Bills.Include(b => b.Student).AsQueryable();
+        if (!string.IsNullOrEmpty(status)) query = query.Where(b => b.Status == status);
+        if (year is not null) query = query.Where(b => b.Year == year);
+        if (month is not null) query = query.Where(b => b.Month == month);
+        return query.OrderByDescending(b => b.Year).ThenByDescending(b => b.Month);
+    }
+
+    private async Task<IActionResult> GenerateBills(JsonElement body)
+    {
+        var year = body.Int("year") ?? DateTime.UtcNow.Year;
+        var month = body.Int("month") ?? DateTime.UtcNow.Month;
+        var students = await db.Users.Where(u => u.Role == "student" && u.IsActive).ToListAsync();
+        var bills = new List<object>();
+        foreach (var student in students) bills.Add((await BuildBill(student.Id, year, month)).Dto());
+        await db.SaveChangesAsync();
+        await audit.LogAsync(User.Id(), User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value, "BILL_GENERATE", "Bill", null, $"Generated bills for {month}/{year}", $$"""{"count":{{bills.Count}}}""");
+        return OkResponse(new { count = bills.Count, bills }, $"Bills generated successfully for {bills.Count} students");
+    }
+
+    private async Task<Bill> BuildBill(string studentId, int year, int month)
+    {
+        var settings = await db.Settings.FirstOrDefaultAsync();
+        if (settings is null)
+        {
+            settings = new Settings { Id = Ids.New() };
+            db.Settings.Add(settings);
+        }
+        var selections = await db.MealSelections.Where(m => m.StudentId == studentId && m.Date.Year == year && m.Date.Month == month).ToListAsync();
+        var holiday = await db.StudentHolidayModes.FirstOrDefaultAsync(h => h.StudentId == studentId);
+        var daysInMonth = DateTime.DaysInMonth(year, month);
+        var breakfast = CountBillableMeals(selections, holiday, year, month, daysInMonth, "breakfast");
+        var lunch = CountBillableMeals(selections, holiday, year, month, daysInMonth, "lunch");
+        var dinner = CountBillableMeals(selections, holiday, year, month, daysInMonth, "dinner");
+        var mealCost = breakfast * settings.BreakfastPrice + lunch * settings.LunchPrice + dinner * settings.DinnerPrice;
+        var fixedCost = 2000m;
+        var total = fixedCost + mealCost + settings.ExtraCharges;
+        total -= total * settings.DiscountPercentage / 100;
+        total += total * settings.TaxPercentage / 100;
+
+        var bill = await db.Bills.FirstOrDefaultAsync(b => b.StudentId == studentId && b.Year == year && b.Month == month);
+        if (bill is null)
+        {
+            bill = new Bill { Id = Ids.New(), StudentId = studentId, Year = year, Month = month, GeneratedById = User.Id() };
+            db.Bills.Add(bill);
+        }
+
+        bill.BreakfastCount = breakfast;
+        bill.BreakfastRate = settings.BreakfastPrice;
+        bill.LunchCount = lunch;
+        bill.LunchRate = settings.LunchPrice;
+        bill.DinnerCount = dinner;
+        bill.DinnerRate = settings.DinnerPrice;
+        bill.TotalMeals = breakfast + lunch + dinner;
+        bill.MealCost = mealCost;
+        bill.FixedCost = fixedCost;
+        bill.TotalAmount = total;
+        bill.UpdatedAt = DateTime.UtcNow;
+        return bill;
+    }
+
+    private static int CountBillableMeals(List<MealSelection> selections, StudentHolidayMode? holiday, int year, int month, int daysInMonth, string mealType)
+    {
+        var count = 0;
+        for (var day = 1; day <= daysInMonth; day++)
+        {
+            var date = new DateTime(year, month, day);
+            if (holiday?.IsEnabled == true && (holiday.StartDate is null || date >= holiday.StartDate.Value.Date) && (holiday.EndDate is null || date <= holiday.EndDate.Value.Date))
+                continue;
+
+            var selection = selections.FirstOrDefault(m => m.Date.Date == date);
+            if (selection is null)
+            {
+                count++;
+                continue;
+            }
+
+            var choice = mealType switch
+            {
+                "breakfast" => selection.BreakfastChoice,
+                "lunch" => selection.LunchChoice,
+                _ => selection.DinnerChoice
+            };
+            var status = mealType switch
+            {
+                "breakfast" => selection.BreakfastStatus,
+                "lunch" => selection.LunchStatus,
+                _ => selection.DinnerStatus
+            };
+
+            if (choice != "cancel" || status != "approved") count++;
+        }
+        return count;
+    }
+}
