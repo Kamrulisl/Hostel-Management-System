@@ -30,6 +30,7 @@ const ModernSidebar = ({ isOpen, onClose }) => {
       { name: 'Home', href: '/home', icon: HomeIcon },
       { name: 'Dashboard', href: '/student/dashboard', icon: ChartBarIcon },
       { name: 'Menu', href: '/student/menu', icon: CalendarIcon },
+      { name: 'Meal Selection', href: '/student/meal-selection', icon: ClipboardDocumentListIcon },
       { name: 'Attendance', href: '/student/attendance', icon: UsersIcon },
       { name: 'My Bills', href: '/student/bill', icon: CreditCardIcon },
       { name: 'Chat', href: '/student/chat', icon: ChatBubbleLeftIcon },

@@ -18,6 +18,7 @@ import ModernRegister from "../pages/auth/ModernRegister";
 import ModernStudentDashboard from "../pages/student/ModernStudentDashboard";
 import MenuView from "../pages/student/MenuView";
 import MealConfirm from "../pages/student/MealConfirm";
+import MealSelection from "../pages/student/MealSelection";
 import AttendanceHistory from "../pages/student/AttendanceHistory";
 import SelfAttendance from "../pages/student/SelfAttendance";
 import ModernMyBill from "../pages/student/ModernMyBill";
@@ -101,6 +102,16 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <RoleRoute allowedRoles={["student"]}>
               <MealConfirm />
+            </RoleRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/meal-selection"
+        element={
+          <ProtectedRoute>
+            <RoleRoute allowedRoles={["student"]}>
+              <MealSelection />
             </RoleRoute>
           </ProtectedRoute>
         }

@@ -42,7 +42,7 @@ const MealSelection = () => {
           <div>
             <h1 className="text-4xl font-bold gradient-text">Meal Selection</h1>
             <p className="text-secondary-600 dark:text-secondary-400">
-              Plan your meals in advance and manage your budget
+              Choose alternatives or cancel meals before midnight of the previous day
             </p>
           </div>
         </div>
@@ -91,19 +91,19 @@ const MealSelection = () => {
           <ul className="space-y-3 text-secondary-700 dark:text-secondary-300">
             <li className="flex items-start gap-3">
               <span className="text-2xl">📅</span>
-              <span>Click on any date to select or deselect meals for that day</span>
+              <span>The weekly schedule repeats automatically every 7 days</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-2xl">🍽️</span>
-              <span>You can select breakfast, lunch, and dinner independently</span>
+              <span>Each breakfast, lunch, and dinner has one default and one alternative option</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-2xl">⏰</span>
-              <span>Meals can only be modified before the cutoff time (10 PM)</span>
+              <span>Alternative and cancel requests must be submitted before 12 AM of the previous day</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-2xl">💰</span>
-              <span>Your bill is calculated based on meals you select</span>
+              <span>Default meals are auto approved; only alternative and cancel requests stay pending</span>
             </li>
           </ul>
         </div>
