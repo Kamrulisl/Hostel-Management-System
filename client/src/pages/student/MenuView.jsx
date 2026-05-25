@@ -25,7 +25,7 @@ import { motion } from "framer-motion";
 import ModernLayout from "../../components/layout/ModernLayout";
 import ModernLoader from "../../components/common/ModernLoader";
 import EmptyState from "../../components/common/EmptyState";
-import { menuService } from "../../services/menu.service";
+import { mealSelectionService } from "../../services/mealSelection.service";
 import { toISODate } from "../../utils/formatDate";
 
 const MenuView = () => {
@@ -42,14 +42,25 @@ const MenuView = () => {
   const fetchMenus = async () => {
     setLoading(true);
     try {
-      const response = await menuService.getMenus(selectedDate);
-      const menusData = response.data.menus;
+      const response = await mealSelectionService.getMyMenu(selectedDate);
+      const menu = response.data.menu;
+      const menusData = ["breakfast", "lunch", "dinner"].map((mealType) => {
+        const choice = menu?.choices?.[mealType] || {};
+        return {
+          _id: `${selectedDate}-${mealType}`,
+          mealType,
+          choice: choice.choice || "default",
+          status: choice.status || "approved",
+          items: choice.items || [],
+          canEdit: menu?.canEdit,
+        };
+      });
       setMenus(menusData);
       
       // Fetch images for each meal
-      menusData.forEach((menu) => {
-        if (menu.items && menu.items.length > 0) {
-          fetchMealImage(menu._id, menu.items[0].name || menu.items[0]);
+      menusData.forEach((meal) => {
+        if (meal.items && meal.items.length > 0) {
+          fetchMealImage(meal._id, meal.items[0].name || meal.items[0]);
         }
       });
     } catch (error) {
@@ -139,7 +150,7 @@ const MenuView = () => {
           <div className="mb-6 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-600 rounded-2xl p-8 text-white shadow-xl shadow-purple-500/30">
             <h1 className="text-4xl font-bold mb-2">Today's Menu 🍽️</h1>
             <p className="text-purple-100">
-              Check what's cooking for you today
+              Check what's cooking for you based on your selected meal
             </p>
           </div>
         </motion.div>
@@ -258,7 +269,7 @@ const MenuView = () => {
                               {menu.mealType}
                             </Typography>
                             <Chip
-                              label={`${menu.items?.length || 0} items`}
+                              label={menu.choice === "cancel" ? "Cancelled" : `${menu.items?.length || 0} items`}
                               size="small"
                               sx={{
                                 backgroundColor: `${mealColor}20`,
@@ -270,7 +281,24 @@ const MenuView = () => {
                         </Box>
 
                         <List>
-                          {menu.items?.map((item, idx) => (
+                          {menu.choice === "cancel" ? (
+                            <ListItem
+                              sx={{
+                                borderRadius: 2,
+                                mb: 1,
+                                backgroundColor: "action.hover",
+                              }}
+                            >
+                              <ListItemText
+                                primary={
+                                  <Typography variant="body1" fontWeight={500}>
+                                    Meal cancelled
+                                  </Typography>
+                                }
+                                secondary="No meal will be cooked for this slot"
+                              />
+                            </ListItem>
+                          ) : menu.items?.map((item, idx) => (
                             <ListItem
                               key={idx}
                               sx={{
@@ -290,6 +318,17 @@ const MenuView = () => {
                             </ListItem>
                           ))}
                         </List>
+                        <Chip
+                          label={`${menu.choice} - ${menu.status}`}
+                          size="small"
+                          sx={{
+                            mt: 1,
+                            textTransform: "capitalize",
+                            backgroundColor: menu.status === "pending" ? "#FEF3C7" : `${mealColor}20`,
+                            color: menu.status === "pending" ? "#92400E" : mealColor,
+                            fontWeight: 700,
+                          }}
+                        />
                       </CardContent>
                     </Card>
                   </motion.div>

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict hOajQAhX4iUtbkAdzySnIHEuAdNyERMYnyvkHhorpCte4ktwprdJtoPGfGAUD5s
+\restrict DCkzJoHvBflyZUrKhj3H5kYuB2ndZGQqTZsR0f3ZC4gW9enE3aYWnBwvRuJW7iP
 
 -- Dumped from database version 18.4 (Ubuntu 18.4-1.pgdg24.04+1)
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-1.pgdg24.04+1)
@@ -429,6 +429,20 @@ COPY public."AuditLogs" ("Id", "ActorId", "ActorRole", "Action", "EntityType", "
 e2e5c6a295c074a7e4a6f5d5	3acdfa641bdfe968502b3d15	student	LOGIN	User	3acdfa641bdfe968502b3d15	User logged in	{}	2026-05-25 09:51:08.917897	2026-05-25 09:51:08.917897
 a6c70303167a786d3906a3ec	474a93b899cc03d94a78543f	admin	LOGIN	User	474a93b899cc03d94a78543f	User logged in	{}	2026-05-25 10:04:17.849015	2026-05-25 10:04:17.849015
 23e54cda573e0a6cf63f409e	2a8fbe44e221552bf3ea6454	manager	LOGIN	User	2a8fbe44e221552bf3ea6454	User logged in	{}	2026-05-25 10:06:20.148785	2026-05-25 10:06:20.148786
+59f42650afb939663b5b89a1	474a93b899cc03d94a78543f	admin	LOGIN	User	474a93b899cc03d94a78543f	User logged in	{}	2026-05-25 10:34:38.560044	2026-05-25 10:34:38.560137
+f9dbfa248eb768430bf41a83	3acdfa641bdfe968502b3d15	student	LOGIN	User	3acdfa641bdfe968502b3d15	User logged in	{}	2026-05-25 10:34:39.980959	2026-05-25 10:34:39.98096
+c15435818f9303471ffc4ea7	474a93b899cc03d94a78543f	admin	LOGIN	User	474a93b899cc03d94a78543f	User logged in	{}	2026-05-25 10:34:48.860389	2026-05-25 10:34:48.860389
+2e431e49f3c2fbd598390702	474a93b899cc03d94a78543f	admin	APPROVE_ALL	MealSelection	\N	Approved 1 meal requests	{}	2026-05-25 10:34:48.930458	2026-05-25 10:34:48.930458
+40b158ba30371d0cf1c72a80	2a8fbe44e221552bf3ea6454	manager	LOGIN	User	2a8fbe44e221552bf3ea6454	User logged in	{}	2026-05-25 10:54:48.692627	2026-05-25 10:54:48.692662
+7b702ad2b47fbed387b7ef82	3acdfa641bdfe968502b3d15	student	LOGIN	User	3acdfa641bdfe968502b3d15	User logged in	{}	2026-05-25 10:54:48.699934	2026-05-25 10:54:48.699934
+37f85d4acb5136e7f858d368	474a93b899cc03d94a78543f	admin	LOGIN	User	474a93b899cc03d94a78543f	User logged in	{}	2026-05-25 10:54:48.692624	2026-05-25 10:54:48.692659
+b67f9844804e2b187d2f522e	3acdfa641bdfe968502b3d15	student	LOGIN	User	3acdfa641bdfe968502b3d15	User logged in	{}	2026-05-25 10:56:44.09682	2026-05-25 10:56:44.09682
+d716f4ca6b44de1033a3637b	3acdfa641bdfe968502b3d15	student	LOGIN	User	3acdfa641bdfe968502b3d15	User logged in	{}	2026-05-25 10:58:29.340603	2026-05-25 10:58:29.340603
+46e3b58b90ff053906f03cb7	bc413512843c5139b681c31f	student	LOGIN	User	bc413512843c5139b681c31f	User logged in	{}	2026-05-25 10:59:20.470115	2026-05-25 10:59:20.470115
+b1cdb8b657073af41ef73010	3acdfa641bdfe968502b3d15	student	LOGIN	User	3acdfa641bdfe968502b3d15	User logged in	{}	2026-05-25 11:22:14.669507	2026-05-25 11:22:14.669588
+2f692de6057abbedeaf07037	2a8fbe44e221552bf3ea6454	manager	LOGIN	User	2a8fbe44e221552bf3ea6454	User logged in	{}	2026-05-25 11:22:15.714239	2026-05-25 11:22:15.714239
+7852e282e6aaaa19b6b29677	3acdfa641bdfe968502b3d15	student	LOGIN	User	3acdfa641bdfe968502b3d15	User logged in	{}	2026-05-25 11:24:15.251053	2026-05-25 11:24:15.251132
+e0c70dc8920255e73189e1f5	2a8fbe44e221552bf3ea6454	manager	LOGIN	User	2a8fbe44e221552bf3ea6454	User logged in	{}	2026-05-25 11:24:16.479718	2026-05-25 11:24:16.479718
 \.
 
 
@@ -498,6 +512,7 @@ plan00000000000000000001	3acdfa641bdfe968502b3d15	2026-05-26 00:00:00	t	t	f	2026
 COPY public."MealSelections" ("Id", "StudentId", "Date", "Breakfast", "Lunch", "Dinner", "CreatedAt", "UpdatedAt", "ApprovedAt", "ApprovedById", "BreakfastChoice", "BreakfastItemsJson", "BreakfastStatus", "DinnerChoice", "DinnerItemsJson", "DinnerStatus", "LunchChoice", "LunchItemsJson", "LunchStatus", "Note") FROM stdin;
 sel000000000000000000001	3acdfa641bdfe968502b3d15	2026-05-25 00:00:00	t	t	t	2026-05-25 15:28:18.757808	2026-05-25 15:28:18.757808	\N	\N	default	[]	approved	default	[]	approved	default	[]	approved	\N
 sel000000000000000000002	be0ba0ba02ad271dbb3c612b	2026-05-25 00:00:00	f	t	t	2026-05-25 15:28:18.757808	2026-05-25 15:28:18.757808	\N	\N	default	[]	approved	default	[]	approved	default	[]	approved	\N
+91f6d8d5ab7027deb04b1916	3acdfa641bdfe968502b3d15	2026-05-26 00:00:00	t	t	t	2026-05-25 10:34:40.472443	2026-05-25 11:24:16.97512	2026-05-25 10:34:48.917668	474a93b899cc03d94a78543f	default	[]	approved	default	[]	approved	alternative	[{"name": "Tuesday Alternative Lunch", "description": "Weekly alternative option"}]	pending	\N
 \.
 
 
@@ -544,6 +559,7 @@ settings0000000000000001	35	60	55	20:00	1	100	0	0	Smart Hostel Mess	Dhaka Hostel
 --
 
 COPY public."StudentHolidayModes" ("Id", "StudentId", "IsEnabled", "StartDate", "EndDate", "Reason", "CreatedAt", "UpdatedAt") FROM stdin;
+24260bc52bdebbfce5610858	bc413512843c5139b681c31f	f	\N	\N	\N	2026-05-25 11:06:55.823014	2026-05-25 11:07:28.431846
 \.
 
 
@@ -569,6 +585,27 @@ bc413512843c5139b681c31f	Nusrat Jahan	nusrat@student.com	$2a$12$41ly6yr2hhgJAzVH
 --
 
 COPY public."WeeklyMealSchedules" ("Id", "DayOfWeek", "MealType", "DefaultItemsJson", "AlternativeItemsJson", "IsActive", "UpdatedById", "CreatedAt", "UpdatedAt") FROM stdin;
+10bd6ac7349e4c18450815bf	3	breakfast	[{"name":"Bread","description":""},{"name":"Jam","description":""},{"name":"Banana","description":""},{"name":"Tea","description":""}]	[{"name": "Wednesday Alternative Breakfast", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.265829	2026-05-25 10:34:40.265829
+156f1f8a047f3e659ca74faf	3	lunch	[{"name":"Rice","description":""},{"name":"Egg Curry","description":""},{"name":"Vegetable","description":""}]	[{"name": "Wednesday Alternative Lunch", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.265938	2026-05-25 10:34:40.265938
+15c5e1acf4b9545375fa220c	0	breakfast	[{"name":"Paratha","description":""},{"name":"Egg Curry","description":""},{"name":"Tea","description":""}]	[{"name": "Sunday Alternative Breakfast", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.215326	2026-05-25 10:34:40.215326
+15cc2d629558061218d76d35	6	lunch	[{"name":"Rice","description":""},{"name":"Mutton Curry","description":""},{"name":"Dal","description":""}]	[{"name": "Saturday Alternative Lunch", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.267006	2026-05-25 10:34:40.267006
+2717b29ea9ca9749adf05f4a	0	dinner	[{"name":"Khichuri","description":""},{"name":"Beef Curry","description":""},{"name":"Salad","description":""}]	[{"name": "Sunday Alternative Dinner", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.264927	2026-05-25 10:34:40.264927
+33073fccbadace362d54fb16	5	dinner	[{"name":"Rice","description":""},{"name":"Fish Fry","description":""},{"name":"Dal","description":""}]	[{"name": "Friday Alternative Dinner", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.266693	2026-05-25 10:34:40.266693
+3a3cff30dc34bbf251ceff9f	2	dinner	[{"name":"Polao","description":""},{"name":"Chicken Curry","description":""},{"name":"Salad","description":""}]	[{"name": "Tuesday Alternative Dinner", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.265734	2026-05-25 10:34:40.265734
+3f7b6e85d9a23436f7e2a14e	4	breakfast	[{"name":"Noodles","description":""},{"name":"Egg","description":""},{"name":"Tea","description":""}]	[{"name": "Thursday Alternative Breakfast", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.266171	2026-05-25 10:34:40.266171
+4f4a08386275ace4fed04822	3	dinner	[{"name":"Rice","description":""},{"name":"Fish Curry","description":""},{"name":"Dal","description":""}]	[{"name": "Wednesday Alternative Dinner", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.266037	2026-05-25 10:34:40.266038
+66ce891df4c16561b2149d10	5	breakfast	[{"name":"Paratha","description":""},{"name":"Halwa","description":""},{"name":"Tea","description":""}]	[{"name": "Friday Alternative Breakfast", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.266491	2026-05-25 10:34:40.266491
+6e1fb1575889e1bfb5164ac7	5	lunch	[{"name":"Biriyani","description":""},{"name":"Salad","description":""},{"name":"Borhani","description":""}]	[{"name": "Friday Alternative Lunch", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.266598	2026-05-25 10:34:40.266598
+7efa856975143cfffe95404c	1	lunch	[{"name":"Rice","description":""},{"name":"Fish Curry","description":""},{"name":"Dal","description":""}]	[{"name": "Monday Alternative Lunch", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.265219	2026-05-25 10:34:40.265219
+97f534dbe843fd498b08178a	2	breakfast	[{"name":"Ruti","description":""},{"name":"Vegetable","description":""},{"name":"Tea","description":""}]	[{"name": "Tuesday Alternative Breakfast", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.265477	2026-05-25 10:34:40.265477
+c2dfa2ebc09f7162590ca4c4	2	lunch	[{"name":"Rice","description":""},{"name":"Beef Curry","description":""},{"name":"Dal","description":""}]	[{"name": "Tuesday Alternative Lunch", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.265573	2026-05-25 10:34:40.265573
+c5abe2b913ce8ea6f0800a85	1	dinner	[{"name":"Rice","description":""},{"name":"Lentil Soup","description":""},{"name":"Vegetable","description":""}]	[{"name": "Monday Alternative Dinner", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.265378	2026-05-25 10:34:40.265378
+c8bc07ca8a5f30363c8fbe33	4	dinner	[{"name":"Rice","description":""},{"name":"Beef Bhuna","description":""},{"name":"Vegetable","description":""}]	[{"name": "Thursday Alternative Dinner", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.266394	2026-05-25 10:34:40.266394
+d0a4e35e314f1642fc95d894	4	lunch	[{"name":"Rice","description":""},{"name":"Chicken Roast","description":""},{"name":"Dal","description":""}]	[{"name": "Thursday Alternative Lunch", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.26629	2026-05-25 10:34:40.26629
+d4380251974a0bf67ad77a42	0	lunch	[{"name":"Rice","description":""},{"name":"Chicken Curry","description":""},{"name":"Dal","description":""}]	[{"name": "Sunday Alternative Lunch", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.264663	2026-05-25 10:34:40.264663
+d4e0ffebdb77c4ecd66532a6	1	breakfast	[{"name":"Khichuri","description":""},{"name":"Boiled Egg","description":""},{"name":"Tea","description":""}]	[{"name": "Monday Alternative Breakfast", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.265075	2026-05-25 10:34:40.265075
+d55df1681207e27a1a48c79b	6	dinner	[{"name":"Polao","description":""},{"name":"Roast Chicken","description":""},{"name":"Salad","description":""}]	[{"name": "Saturday Alternative Dinner", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.267173	2026-05-25 10:34:40.267173
+ee6b487c3c15790fa4150a99	6	breakfast	[{"name":"Khichuri","description":""},{"name":"Egg Fry","description":""},{"name":"Tea","description":""}]	[{"name": "Saturday Alternative Breakfast", "description": "Weekly alternative option"}]	t	\N	2026-05-25 10:34:40.266853	2026-05-25 10:34:40.266853
 \.
 
 
@@ -961,5 +998,5 @@ ALTER TABLE ONLY public."StudentHolidayModes"
 -- PostgreSQL database dump complete
 --
 
-\unrestrict hOajQAhX4iUtbkAdzySnIHEuAdNyERMYnyvkHhorpCte4ktwprdJtoPGfGAUD5s
+\unrestrict DCkzJoHvBflyZUrKhj3H5kYuB2ndZGQqTZsR0f3ZC4gW9enE3aYWnBwvRuJW7iP
 

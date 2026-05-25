@@ -17,6 +17,9 @@ export const mealSelectionService = {
   getMealSummary: (year, month) =>
     api.get(`/meals/summary?year=${year}&month=${month}`),
 
+  getMyMenu: (date) =>
+    api.get(`/meals/my-menu${date ? `?date=${date}` : ""}`),
+
   // Admin: Get daily meal counts
   getDailyMealCounts: (date) =>
     api.get(`/meals/daily-counts?date=${date}`),

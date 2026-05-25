@@ -14,7 +14,7 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
     public async Task<IActionResult> Select(JsonElement body)
     {
         var date = body.Date("date")?.Date ?? DateTime.UtcNow.Date;
-        if (date <= DateTime.Now.Date) return ErrorResponse(400, "Meal change must be submitted before the meal day starts");
+        if (!CanChangeMeal(date)) return ErrorResponse(400, "Meal change must be submitted before 12 AM of the previous day");
 
         var mealType = body.String("mealType");
         if (string.IsNullOrWhiteSpace(mealType) && body.TryGetProperty("meals", out var meals))
@@ -39,7 +39,7 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
     {
         var start = body.Date("startDate")?.Date ?? DateTime.UtcNow.Date.AddDays(1);
         var end = body.Date("endDate")?.Date ?? start;
-        if (start <= DateTime.Now.Date) return ErrorResponse(400, "Meal change must be submitted before the meal day starts");
+        if (!CanChangeMeal(start)) return ErrorResponse(400, "Meal change must be submitted before 12 AM of the previous day");
 
         var updated = new List<object>();
         for (var day = start; day <= end; day = day.AddDays(1))
@@ -57,8 +57,17 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
     {
         var from = new DateTime(year, month, 1);
         var to = from.AddMonths(1).AddDays(-1);
-        var mealSelections = await BuildEffectiveSelections(User.Id()!, from, to);
+        var mealSelections = await BuildDisplaySelections(User.Id()!, from, to);
         return OkResponse(new { mealSelections }, "Meal calendar retrieved successfully");
+    }
+
+    [Authorize(Roles = "student")]
+    [HttpGet("my-menu")]
+    public async Task<IActionResult> MyMenu(DateTime? date)
+    {
+        var day = (date ?? DateTime.UtcNow).Date;
+        var mealSelections = await BuildDisplaySelections(User.Id()!, day, day);
+        return OkResponse(new { menu = mealSelections.First() }, "Your menu retrieved successfully");
     }
 
     [Authorize(Roles = "student")]
@@ -297,6 +306,36 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
         return result;
     }
 
+    private async Task<List<EffectiveMealSelection>> BuildDisplaySelections(string studentId, DateTime from, DateTime to)
+    {
+        await EnsureWeeklySchedule();
+        var result = new List<EffectiveMealSelection>();
+        for (var day = from.Date; day <= to.Date; day = day.AddDays(1))
+        {
+            var breakfast = await DisplayChoice(studentId, day, "breakfast");
+            var lunch = await DisplayChoice(studentId, day, "lunch");
+            var dinner = await DisplayChoice(studentId, day, "dinner");
+            result.Add(new EffectiveMealSelection(day, breakfast, lunch, dinner));
+        }
+        return result;
+    }
+
+    private async Task<EffectiveMealChoice> DisplayChoice(string studentId, DateTime date, string mealType)
+    {
+        var holiday = await db.StudentHolidayModes.FirstOrDefaultAsync(h => h.StudentId == studentId);
+        if (holiday?.IsEnabled == true && (holiday.StartDate is null || date >= holiday.StartDate.Value.Date) && (holiday.EndDate is null || date <= holiday.EndDate.Value.Date))
+            return new EffectiveMealChoice("cancel", "approved", Array.Empty<object>());
+
+        var selection = await db.MealSelections.FirstOrDefaultAsync(m => m.StudentId == studentId && m.Date == date);
+        if (selection is not null)
+        {
+            var choice = GetChoice(selection, mealType);
+            return new EffectiveMealChoice(choice, GetStatus(selection, mealType), ParseItems(await ItemsJsonOrSchedule(selection, date, mealType, choice)));
+        }
+
+        return new EffectiveMealChoice("default", "approved", ParseItems(await ItemsFor(date, mealType, "default")));
+    }
+
     private async Task<EffectiveMealChoice> EffectiveChoice(string studentId, DateTime date, string mealType)
     {
         var holiday = await db.StudentHolidayModes.FirstOrDefaultAsync(h => h.StudentId == studentId);
@@ -309,10 +348,17 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
             var choice = GetChoice(selection, mealType);
             var status = GetStatus(selection, mealType);
             if (choice == "default" || status == "approved")
-                return new EffectiveMealChoice(choice, status, ParseItems(GetItemsJson(selection, mealType)));
+                return new EffectiveMealChoice(choice, status, ParseItems(await ItemsJsonOrSchedule(selection, date, mealType, choice)));
         }
 
         return new EffectiveMealChoice("default", "approved", ParseItems(await ItemsFor(date, mealType, "default")));
+    }
+
+    private async Task<string> ItemsJsonOrSchedule(MealSelection selection, DateTime date, string mealType, string choice)
+    {
+        var stored = GetItemsJson(selection, mealType);
+        if (!string.IsNullOrWhiteSpace(stored) && stored != "[]") return stored;
+        return await ItemsFor(date, mealType, choice);
     }
 
     private async Task<string> ItemsFor(DateTime date, string mealType, string choice)
@@ -327,30 +373,70 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
     {
         if (await db.WeeklyMealSchedules.AnyAsync()) return;
 
-        var defaults = new Dictionary<string, string[]>
-        {
-            ["breakfast"] = ["Rice, Dal, Egg", "Paratha, Vegetable, Tea"],
-            ["lunch"] = ["Rice, Fish Curry, Dal", "Rice, Chicken Curry, Salad"],
-            ["dinner"] = ["Rice, Chicken, Vegetable", "Khichuri, Egg Curry"]
-        };
-
         for (var day = 0; day < 7; day++)
         {
             foreach (var mealType in MealTypes)
             {
+                var items = WeeklyDefaults[day][mealType];
                 db.WeeklyMealSchedules.Add(new WeeklyMealSchedule
                 {
                     Id = Ids.New(),
                     DayOfWeek = day,
                     MealType = mealType,
-                    DefaultItemsJson = JsonSerializer.Serialize(ToItems(defaults[mealType][0])),
-                    AlternativeItemsJson = JsonSerializer.Serialize(ToItems(defaults[mealType][1]))
+                    DefaultItemsJson = JsonSerializer.Serialize(ToItems(items.Default)),
+                    AlternativeItemsJson = JsonSerializer.Serialize(ToItems(items.Alternative))
                 });
             }
         }
 
         await db.SaveChangesAsync();
     }
+
+    private static readonly Dictionary<int, Dictionary<string, (string Default, string Alternative)>> WeeklyDefaults = new()
+    {
+        [0] = new()
+        {
+            ["breakfast"] = ("Paratha, Egg Curry, Tea", "Bread, Omelette, Banana"),
+            ["lunch"] = ("Rice, Chicken Curry, Dal", "Rice, Mixed Vegetable, Egg Curry"),
+            ["dinner"] = ("Khichuri, Beef Curry, Salad", "Rice, Fish Fry, Vegetable")
+        },
+        [1] = new()
+        {
+            ["breakfast"] = ("Khichuri, Boiled Egg, Tea", "Noodles, Egg, Tea"),
+            ["lunch"] = ("Rice, Fish Curry, Dal", "Rice, Chicken Roast, Salad"),
+            ["dinner"] = ("Rice, Lentil Soup, Vegetable", "Fried Rice, Chicken Chili")
+        },
+        [2] = new()
+        {
+            ["breakfast"] = ("Ruti, Vegetable, Tea", "Semai, Egg, Milk"),
+            ["lunch"] = ("Rice, Beef Curry, Dal", "Rice, Fish Curry, Mashed Potato"),
+            ["dinner"] = ("Polao, Chicken Curry, Salad", "Rice, Dal, Egg Bhuna")
+        },
+        [3] = new()
+        {
+            ["breakfast"] = ("Bread, Jam, Banana, Tea", "Paratha, Dal, Egg"),
+            ["lunch"] = ("Rice, Egg Curry, Vegetable", "Rice, Chicken Curry, Dal"),
+            ["dinner"] = ("Rice, Fish Curry, Dal", "Khichuri, Chicken Fry")
+        },
+        [4] = new()
+        {
+            ["breakfast"] = ("Noodles, Egg, Tea", "Ruti, Vegetable, Tea"),
+            ["lunch"] = ("Rice, Chicken Roast, Dal", "Rice, Fish Curry, Salad"),
+            ["dinner"] = ("Rice, Beef Bhuna, Vegetable", "Fried Rice, Egg Curry")
+        },
+        [5] = new()
+        {
+            ["breakfast"] = ("Paratha, Halwa, Tea", "Bread, Egg, Milk"),
+            ["lunch"] = ("Biriyani, Salad, Borhani", "Rice, Chicken Curry, Dal"),
+            ["dinner"] = ("Rice, Fish Fry, Dal", "Khichuri, Egg Curry")
+        },
+        [6] = new()
+        {
+            ["breakfast"] = ("Khichuri, Egg Fry, Tea", "Pancake, Banana, Milk"),
+            ["lunch"] = ("Rice, Mutton Curry, Dal", "Rice, Fish Curry, Vegetable"),
+            ["dinner"] = ("Polao, Roast Chicken, Salad", "Rice, Dal, Mixed Vegetable")
+        }
+    };
 
     private static List<object> ToItems(string text) => text.Split(", ").Select(name => new { name, description = "" }).Cast<object>().ToList();
 
@@ -397,6 +483,8 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
         choice = choice?.Trim().ToLowerInvariant();
         return choice is "default" or "alternative" or "cancel" ? choice : null;
     }
+
+    private static bool CanChangeMeal(DateTime mealDate) => DateTime.Now < mealDate.Date;
 
     private static void SetMeal(MealSelection selection, string mealType, string choice, string status, string itemsJson)
     {
@@ -459,6 +547,7 @@ public class MealsController(AppDbContext db, AuditService audit) : ApiControlle
     {
         public string _id => Date.ToString("yyyyMMdd");
         public string id => _id;
+        public bool canEdit => CanChangeMeal(Date);
         public object Meals => new { breakfast = Breakfast.Choice != "cancel", lunch = Lunch.Choice != "cancel", dinner = Dinner.Choice != "cancel" };
         public object Choices => new { breakfast = Breakfast, lunch = Lunch, dinner = Dinner };
     }

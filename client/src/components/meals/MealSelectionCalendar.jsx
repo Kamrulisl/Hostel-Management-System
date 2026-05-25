@@ -9,6 +9,12 @@ const MealSelectionCalendar = ({ year, month }) => {
   const [mealSelections, setMealSelections] = useState([]);
   const [schedule, setSchedule] = useState([]);
   const [holidayMode, setHolidayMode] = useState({ isEnabled: false });
+  const [holidayForm, setHolidayForm] = useState({
+    isEnabled: false,
+    startDate: '',
+    endDate: '',
+    reason: '',
+  });
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedChoices, setSelectedChoices] = useState({
@@ -31,7 +37,14 @@ const MealSelectionCalendar = ({ year, month }) => {
       ]);
       setMealSelections(calendarRes.data.mealSelections || []);
       setSchedule(scheduleRes.data.schedule || []);
-      setHolidayMode(holidayRes.data.holidayMode || { isEnabled: false });
+      const nextHolidayMode = holidayRes.data.holidayMode || { isEnabled: false };
+      setHolidayMode(nextHolidayMode);
+      setHolidayForm({
+        isEnabled: !!nextHolidayMode.isEnabled,
+        startDate: nextHolidayMode.startDate ? toISODate(nextHolidayMode.startDate) : '',
+        endDate: nextHolidayMode.endDate ? toISODate(nextHolidayMode.endDate) : '',
+        reason: nextHolidayMode.reason || '',
+      });
     } catch (error) {
       console.error('Error fetching meal calendar:', error);
       toast.error('Failed to load meal calendar');
@@ -69,10 +82,10 @@ const MealSelectionCalendar = ({ year, month }) => {
     }
   };
 
-  const handleHolidayToggle = async () => {
+  const handleHolidaySave = async () => {
     try {
-      await mealSelectionService.updateHolidayMode({ isEnabled: !holidayMode.isEnabled });
-      toast.success(!holidayMode.isEnabled ? 'Holiday mode enabled' : 'Holiday mode disabled');
+      await mealSelectionService.updateHolidayMode(holidayForm);
+      toast.success(holidayForm.isEnabled ? 'Holiday mode saved' : 'Holiday mode disabled');
       await fetchMealCalendar();
     } catch (error) {
       toast.error(error.message || 'Failed to update holiday mode');
@@ -96,15 +109,53 @@ const MealSelectionCalendar = ({ year, month }) => {
         <h2 className="text-2xl font-bold gradient-text">
           {monthNames[month - 1]} {year}
         </h2>
-        <button
-          onClick={handleHolidayToggle}
-          className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+        <span
+          className={`px-4 py-2 rounded-lg font-semibold ${
             holidayMode.isEnabled
               ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
               : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
           }`}
         >
           Holiday Mode: {holidayMode.isEnabled ? 'On' : 'Off'}
+        </span>
+      </div>
+
+      <div className="mb-6 p-4 bg-secondary-50 dark:bg-secondary-700/50 rounded-xl border border-secondary-200 dark:border-secondary-700">
+        <label className="flex items-center gap-3 font-semibold text-secondary-800 dark:text-secondary-100 mb-3">
+          <input
+            type="checkbox"
+            checked={holidayForm.isEnabled}
+            onChange={(event) => setHolidayForm((prev) => ({ ...prev, isEnabled: event.target.checked }))}
+            className="w-5 h-5 accent-purple-600"
+          />
+          Holiday mode
+        </label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            type="date"
+            value={holidayForm.startDate}
+            onChange={(event) => setHolidayForm((prev) => ({ ...prev, startDate: event.target.value }))}
+            className="px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-600 bg-white dark:bg-secondary-800"
+          />
+          <input
+            type="date"
+            value={holidayForm.endDate}
+            onChange={(event) => setHolidayForm((prev) => ({ ...prev, endDate: event.target.value }))}
+            className="px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-600 bg-white dark:bg-secondary-800"
+          />
+          <input
+            type="text"
+            value={holidayForm.reason}
+            onChange={(event) => setHolidayForm((prev) => ({ ...prev, reason: event.target.value }))}
+            placeholder="Reason"
+            className="px-3 py-2 rounded-lg border border-secondary-200 dark:border-secondary-600 bg-white dark:bg-secondary-800"
+          />
+        </div>
+        <button
+          onClick={handleHolidaySave}
+          className="mt-3 px-4 py-2 bg-violet-600 text-white rounded-lg font-semibold hover:bg-violet-700"
+        >
+          Save Holiday Mode
         </button>
       </div>
 
@@ -160,7 +211,9 @@ const MealSelectionCalendar = ({ year, month }) => {
               <div className="space-y-4">
                 {mealTypes.map((mealType) => {
                   const daySchedule = getSchedule(selectedDate, mealType);
-                  const status = getMealForDate(selectedDate)?.choices?.[mealType]?.status || 'approved';
+                  const selectedMeal = getMealForDate(selectedDate);
+                  const status = selectedMeal?.choices?.[mealType]?.status || 'approved';
+                  const canEdit = selectedMeal?.canEdit ?? false;
 
                   return (
                     <div key={mealType} className="p-4 bg-white dark:bg-secondary-700 rounded-lg">
@@ -171,11 +224,17 @@ const MealSelectionCalendar = ({ year, month }) => {
                         </div>
                         <button
                           onClick={() => handleSaveMeal(mealType)}
+                          disabled={!canEdit}
                           className="px-4 py-2 bg-violet-600 text-white rounded-lg font-semibold hover:bg-violet-700"
                         >
                           Save
                         </button>
                       </div>
+                      {!canEdit && (
+                        <div className="mb-3 text-sm text-rose-600 dark:text-rose-300">
+                          This meal can no longer be edited. Changes must be submitted before 12 AM of the previous day.
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {['default', 'alternative', 'cancel'].map((choice) => (
